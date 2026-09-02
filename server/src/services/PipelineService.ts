@@ -41,6 +41,11 @@ export interface PipelineOptions {
   brandId?: string;
   /** Preferred motion recipe id / motionType applied across scenes */
   preferredMotion?: string;
+  /**
+   * local = giữ file trên máy (tải về Desktop qua UI)
+   * drive = upload Google Drive (cần Settings Drive)
+   */
+  publishTarget?: 'local' | 'drive';
 }
 
 export interface PipelineResult {
@@ -292,49 +297,66 @@ function applyPreferredMotion(
 
 async function publishArtifact(
   absolutePath: string,
-  publicLocalPath: string
+  publicLocalPath: string,
+  publishTarget: 'local' | 'drive' = 'local'
 ): Promise<{
   finalOutputPath: string;
   absoluteFinalPath: string | null;
   drive?: DriveUploadResult;
   uploadedToDrive: boolean;
 }> {
-  if (!driveService.isConfigured()) {
-    console.warn(
-      '[pipeline] Drive not configured — keeping local artifact. Set GOOGLE_APPLICATION_CREDENTIALS + GDRIVE_FOLDER_ID.'
+  if (publishTarget === 'drive') {
+    if (!driveService.isConfigured()) {
+      throw new Error(
+        'Google Drive chưa được cấu hình. Vào Cài đặt → Lưu trữ đám mây (bật Drive, dán Service Account + Folder ID), hoặc chọn xuất ra máy này.'
+      );
+    }
+
+    const fileName = path.basename(absolutePath);
+    const mimeType = mimeFromPath(absolutePath);
+    const drive = await driveService.uploadFile(
+      absolutePath,
+      fileName,
+      mimeType
     );
+
+    try {
+      await fs.unlink(absolutePath);
+    } catch (err) {
+      console.warn(
+        '[pipeline] uploaded to Drive but failed to delete local file:',
+        err
+      );
+    }
+
     return {
-      finalOutputPath: publicLocalPath,
-      absoluteFinalPath: absolutePath,
-      uploadedToDrive: false,
+      finalOutputPath: drive.webViewLink,
+      absoluteFinalPath: null,
+      drive,
+      uploadedToDrive: true,
     };
   }
 
-  const fileName = path.basename(absolutePath);
-  const mimeType = mimeFromPath(absolutePath);
-  const drive = await driveService.uploadFile(absolutePath, fileName, mimeType);
-
-  try {
-    await fs.unlink(absolutePath);
-  } catch (err) {
-    console.warn('[pipeline] uploaded to Drive but failed to delete local file:', err);
-  }
-
+  // local — giữ artifact để tải về máy
   return {
-    finalOutputPath: drive.webViewLink,
-    absoluteFinalPath: null,
-    drive,
-    uploadedToDrive: true,
+    finalOutputPath: publicLocalPath,
+    absoluteFinalPath: absolutePath,
+    uploadedToDrive: false,
   };
 }
 
 export async function runVideoPipeline(
-  prompt: string,
-  voiceRegion: VietnameseVoiceRegion = 'south',
-  templateId?: string,
-  brandId?: string,
-  preferredMotion?: string
+  options: PipelineOptions
 ): Promise<PipelineResult> {
+  const {
+    prompt,
+    voiceRegion = 'south',
+    templateId,
+    brandId,
+    preferredMotion,
+    publishTarget = 'local',
+  } = options;
+
   if (!prompt?.trim()) {
     throw new Error('runVideoPipeline: prompt is required.');
   }
@@ -479,7 +501,8 @@ export async function runVideoPipeline(
 
     const published = await publishArtifact(
       absoluteArtifact,
-      toPublicWorkspacePath(workspacePath, finalName)
+      toPublicWorkspacePath(workspacePath, finalName),
+      publishTarget
     );
 
     keepWorkspace = true;
@@ -625,17 +648,17 @@ export async function runPreviewPipeline(
 export async function runGeneratePipeline(
   options: PipelineOptions
 ): Promise<PipelineResult> {
-  const { prompt, type, voiceRegion, templateId, brandId, preferredMotion } =
-    options;
+  const {
+    prompt,
+    type,
+    templateId,
+    brandId,
+    preferredMotion,
+    publishTarget = 'local',
+  } = options;
 
   if (type === 'video') {
-    return runVideoPipeline(
-      prompt,
-      voiceRegion,
-      templateId,
-      brandId,
-      preferredMotion
-    );
+    return runVideoPipeline(options);
   }
 
   const workspacePath = path.resolve(await workspaceService.createWorkspace());
@@ -664,7 +687,8 @@ export async function runGeneratePipeline(
 
     const published = await publishArtifact(
       htmlPath,
-      toPublicWorkspacePath(workspacePath, fileName)
+      toPublicWorkspacePath(workspacePath, fileName),
+      publishTarget
     );
 
     keepWorkspace = true;

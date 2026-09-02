@@ -21,6 +21,8 @@ export interface GenerateBody {
   brandId?: string;
   /** Preferred motion-anything recipe / motionType */
   motionId?: string;
+  /** local = tải về máy · drive = Google Drive */
+  publishTarget?: 'local' | 'drive';
 }
 
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
@@ -38,6 +40,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
     templateId,
     brandId,
     motionId,
+    publishTarget = 'local',
   } = req.body as Partial<GenerateBody>;
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -64,6 +67,9 @@ export async function generate(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const target =
+    publishTarget === 'drive' ? 'drive' : ('local' as 'local' | 'drive');
+
   try {
     const result = await runGeneratePipeline({
       prompt: prompt.trim(),
@@ -75,12 +81,14 @@ export async function generate(req: Request, res: Response): Promise<void> {
         typeof motionId === 'string' && motionId.trim()
           ? motionId.trim()
           : undefined,
+      publishTarget: target,
     });
 
     res.status(200).json({
       success: true,
       type,
       voiceRegion,
+      publishTarget: target,
       templateId: result.templateId,
       brandId: result.brandId,
       motionId: result.preferredMotion ?? null,
@@ -94,10 +102,10 @@ export async function generate(req: Request, res: Response): Promise<void> {
       cliLogs: result.cliLogs,
       degraded: result.degraded,
       message: result.uploadedToDrive
-        ? 'Uploaded to Google Drive. Local artifact removed after successful upload.'
+        ? 'Đã xuất lên Google Drive. Có thể mở link Drive bên dưới.'
         : result.degraded
-          ? 'Pipeline finished in degraded mode (HTML preview). Drive upload skipped or not configured.'
-          : 'Generation complete (local artifact retained — configure Drive in Settings to auto-upload).',
+          ? 'Hoàn tất (chế độ HTML xem trước). Tải file về máy hoặc mở trong trình duyệt.'
+          : 'Hoàn tất. Tải file về máy (Desktop) bằng nút bên dưới.',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

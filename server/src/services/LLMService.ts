@@ -82,9 +82,10 @@ function buildSystemPrompt(contentType: ContentType): string {
     '4. visualText: short on-screen copy (Vietnamese), suitable for a single frame.',
     '5. voiceoverText: natural spoken Vietnamese for TTS. For poster/slide, you may use "".',
     '6. motionType: one of typewriter | fade-in | glitch | slide-up | zoom-in | ken-burns.',
-    '7. duration: estimated seconds as a positive number (typically 3–8 per scene).',
-    '8. scenes: 3–8 items, sceneId starting at 1 and incrementing by 1.',
-    '9. Prefer clear Vietnamese diacritics; avoid broken encoding.',
+    '7. duration: seconds (number > 0) for that scene. Sum of durations should match the requested total length when provided.',
+    '8. scenes: follow the requested scene/block count from the user brief when provided (allow 3–60). sceneId starts at 1.',
+    '9. For long videos (>10 minutes): group as chapters/blocks; keep visualText short; voiceoverText can be longer.',
+    '10. Prefer clear Vietnamese diacritics; avoid broken encoding.',
   ].join('\n');
 }
 

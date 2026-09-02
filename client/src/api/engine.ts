@@ -55,6 +55,8 @@ export interface MotionRecipe {
   motionType: string
 }
 
+export type PublishTarget = 'local' | 'drive'
+
 export interface GeneratePayload {
   prompt: string
   type: ContentType
@@ -62,6 +64,7 @@ export interface GeneratePayload {
   templateId?: string
   brandId?: string
   motionId?: string
+  publishTarget?: PublishTarget
 }
 
 export interface GenerateResponse {
@@ -113,6 +116,7 @@ export async function generateContent(
     templateId: payload.templateId,
     brandId: payload.brandId,
     motionId: payload.motionId,
+    publishTarget: payload.publishTarget ?? 'local',
   })
   return data
 }

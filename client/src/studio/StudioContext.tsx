@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import type {
   ContentType,
   MotionRecipe,
+  PublishTarget,
   TemplateMeta,
   VoiceRegion,
 } from '../api/engine'
@@ -16,8 +17,11 @@ export type RenderPhase =
   | 'html'
   | 'motion'
   | 'media'
+  | 'publish'
   | 'done'
   | 'error'
+
+export type { PublishTarget }
 
 export interface StudioSelection {
   selectedTemplate: TemplateMeta | null
@@ -75,7 +79,7 @@ export interface StudioContextValue {
   result: StudioResult
   error: string | null
   generatePreview: () => Promise<void>
-  finalRender: () => Promise<void>
+  finalRender: (target?: PublishTarget) => Promise<void>
   canGoNext: boolean
   goNext: () => void
   goBack: () => void
@@ -83,6 +87,10 @@ export interface StudioContextValue {
   removeBrand: (id: string) => void
   runAiAssist: () => Promise<void>
   aiAssistLoading: boolean
+  /** Đích xuất bản đang chọn trên bước 4 */
+  publishTarget: PublishTarget
+  setPublishTarget: (target: PublishTarget) => void
+  driveReady: boolean
 }
 
 export const StudioContext = createContext<StudioContextValue | null>(null)

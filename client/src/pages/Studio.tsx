@@ -9,6 +9,7 @@ import {
   generatePreview as apiGeneratePreview,
   templateTypeToContentType,
   type MotionRecipe,
+  type PublishTarget,
   type TemplateMeta,
 } from '../api/engine'
 import {
@@ -147,6 +148,8 @@ export function StudioPage({
   const [renderPhase, setRenderPhase] = useState<RenderPhase>('idle')
   const [result, setResult] = useState<StudioResult>(INITIAL_RESULT)
   const [error, setError] = useState<string | null>(null)
+  const [publishTarget, setPublishTarget] = useState<PublishTarget>('local')
+  const [driveReady, setDriveReady] = useState(false)
   const phaseTimers = useRef<number[]>([])
 
   const clearPhaseTimers = useCallback(() => {
@@ -174,6 +177,11 @@ export function StudioPage({
           ...prev,
           voiceRegion: settings.system.defaultVoice,
         }))
+        const ready =
+          settings.drive.enabled &&
+          settings.drive.serviceAccountSet &&
+          Boolean(settings.drive.folderId?.trim())
+        setDriveReady(ready)
       } catch {
         /* ignore */
       }
@@ -269,11 +277,8 @@ export function StudioPage({
     if (step === 1) return Boolean(selection.selectedTemplate)
     if (step === 2) return Boolean(selection.selectedBrand)
     if (step === 3) {
-      return (
-        fieldsComplete(selection) &&
-        Boolean(selection.aiBrief.trim()) &&
-        selectionHasContent(selection)
-      )
+      // Tab «đã có kịch bản» hoặc sau AI: đủ field mẫu + có nội dung
+      return fieldsComplete(selection) && selectionHasContent(selection)
     }
     return false
   }, [step, selection])
@@ -392,71 +397,85 @@ export function StudioPage({
     }
   }, [selection, onNotify])
 
-  const handleFinalRender = useCallback(async () => {
-    const prompt = resolvePrompt(selection)
-    if (!prompt.trim()) return
-    clearPhaseTimers()
-    setRenderLoading(true)
-    setError(null)
-    setRenderPhase('script')
-    setSelection((prev) => ({ ...prev, prompt }))
-    setResult((prev) => ({
-      ...prev,
-      resultUrl: null,
-      driveUrl: null,
-      uploadedToDrive: false,
-      message: null,
-    }))
-
-    phaseTimers.current.push(
-      window.setTimeout(() => setRenderPhase('html'), 4000),
-      window.setTimeout(() => setRenderPhase('motion'), 10000),
-      window.setTimeout(() => setRenderPhase('media'), 18000)
-    )
-
-    try {
-      const response = await generateContent({
-        prompt,
-        type: selection.contentType,
-        voiceRegion:
-          selection.contentType === 'video'
-            ? selection.voiceRegion
-            : undefined,
-        templateId: selection.selectedTemplate?.id,
-        brandId: selection.selectedBrand?.id,
-        motionId:
-          selection.selectedMotion?.motionType ||
-          selection.selectedMotion?.id,
-      })
-
-      if (!response.success || !response.finalOutputPath) {
-        throw new Error(response.error || 'Server không trả về file kết quả.')
+  const handleFinalRender = useCallback(
+    async (targetOverride?: PublishTarget) => {
+      const prompt = resolvePrompt(selection)
+      if (!prompt.trim()) return
+      const target = targetOverride ?? publishTarget
+      if (target === 'drive' && !driveReady) {
+        onNotify?.(
+          'Drive chưa sẵn sàng. Cấu hình trong Cài đặt hoặc chọn xuất ra máy này.',
+          true
+        )
+        return
       }
 
+      clearPhaseTimers()
+      setRenderLoading(true)
+      setError(null)
+      setRenderPhase('script')
+      setSelection((prev) => ({ ...prev, prompt }))
       setResult((prev) => ({
         ...prev,
-        resultUrl: response.finalOutputPath!,
-        driveUrl: response.driveUrl ?? response.finalOutputPath!,
-        uploadedToDrive: Boolean(response.uploadedToDrive),
-        message: response.message ?? null,
+        resultUrl: null,
+        driveUrl: null,
+        uploadedToDrive: false,
+        message: null,
       }))
-      setRenderPhase('done')
-      onNotify?.(
-        response.message ||
-          (response.uploadedToDrive
-            ? 'Đã tải lên Google Drive.'
-            : 'Render hoàn tất.')
+
+      phaseTimers.current.push(
+        window.setTimeout(() => setRenderPhase('html'), 4000),
+        window.setTimeout(() => setRenderPhase('motion'), 10000),
+        window.setTimeout(() => setRenderPhase('media'), 18000),
+        window.setTimeout(() => setRenderPhase('publish'), 28000)
       )
-    } catch (err) {
-      const message = extractErrorMessage(err)
-      setError(message)
-      setRenderPhase('error')
-      onNotify?.(message, true)
-    } finally {
-      clearPhaseTimers()
-      setRenderLoading(false)
-    }
-  }, [selection, onNotify, clearPhaseTimers])
+
+      try {
+        const response = await generateContent({
+          prompt,
+          type: selection.contentType,
+          voiceRegion:
+            selection.contentType === 'video'
+              ? selection.voiceRegion
+              : undefined,
+          templateId: selection.selectedTemplate?.id,
+          brandId: selection.selectedBrand?.id,
+          motionId:
+            selection.selectedMotion?.motionType ||
+            selection.selectedMotion?.id,
+          publishTarget: target,
+        })
+
+        if (!response.success || !response.finalOutputPath) {
+          throw new Error(response.error || 'Server không trả về file kết quả.')
+        }
+
+        setResult((prev) => ({
+          ...prev,
+          resultUrl: response.finalOutputPath!,
+          driveUrl: response.driveUrl ?? null,
+          uploadedToDrive: Boolean(response.uploadedToDrive),
+          message: response.message ?? null,
+        }))
+        setRenderPhase('done')
+        onNotify?.(
+          response.message ||
+            (response.uploadedToDrive
+              ? 'Đã xuất lên Google Drive.'
+              : 'Render xong — tải về máy của bạn.')
+        )
+      } catch (err) {
+        const message = extractErrorMessage(err)
+        setError(message)
+        setRenderPhase('error')
+        onNotify?.(message, true)
+      } finally {
+        clearPhaseTimers()
+        setRenderLoading(false)
+      }
+    },
+    [selection, onNotify, clearPhaseTimers, publishTarget, driveReady]
+  )
 
   const ctxValue = useMemo(
     () => ({
@@ -485,6 +504,9 @@ export function StudioPage({
       removeBrand,
       runAiAssist,
       aiAssistLoading,
+      publishTarget,
+      setPublishTarget,
+      driveReady,
     }),
     [
       step,
@@ -510,6 +532,8 @@ export function StudioPage({
       removeBrand,
       runAiAssist,
       aiAssistLoading,
+      publishTarget,
+      driveReady,
     ]
   )
 
@@ -529,11 +553,14 @@ export function StudioPage({
                   Studio sáng tạo
                 </p>
                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-                  {step === 1 && 'Chọn mẫu'}
-                  {step === 2 && 'Thương hiệu'}
-                  {step === 3 && 'Soạn thảo & AI'}
-                  {step === 4 && 'Xuất bản'}
+                  {step === 1 && '1. Chọn mẫu'}
+                  {step === 2 && '2. Chọn thương hiệu'}
+                  {step === 3 && '3. Kịch bản / nội dung'}
+                  {step === 4 && '4. Chạy & xuất bản'}
                 </h1>
+                <p className="mt-1 hidden text-xs text-slate-500 sm:block">
+                  Mẫu → Brand → Kịch bản (tay hoặc AI) → Xuất máy / Drive
+                </p>
               </div>
               <ol className="flex items-center gap-1.5" aria-label="Tiến trình">
                 {([1, 2, 3, 4] as const).map((s) => (

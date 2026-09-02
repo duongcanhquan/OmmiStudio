@@ -4,8 +4,8 @@ import { useStudio, type StudioStep } from './StudioContext'
 
 const STEPS: { id: StudioStep; label: string }[] = [
   { id: 1, label: 'Mẫu' },
-  { id: 2, label: 'Thương hiệu' },
-  { id: 3, label: 'Nội dung' },
+  { id: 2, label: 'Brand' },
+  { id: 3, label: 'Kịch bản' },
   { id: 4, label: 'Xuất bản' },
 ]
 
