@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+!server/.env.example
+
+# Workspaces / temp generation output
+server/workspaces/*
+!server/workspaces/.gitkeep
+
+# Vendored nexu-io CLIs (cloned by install:tools / setup)
+server/tools/*
+!server/tools/.gitkeep
+
+# Local Python venv (edge-tts)
+server/.venv/
+
+# Google service account keys (never commit)
+server/credentials/*
+!server/credentials/.gitkeep
+
+# Dynamic runtime settings (API keys / Drive JSON)
+server/settings.json
+server/data/settings.json
+server/data/*
+!server/data/.gitkeep
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Vite
+client/dist/
+*.local

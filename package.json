@@ -1,0 +1,25 @@
+{
+  "name": "omnistudio-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OmniStudio OS — local content generation wrapper around html-anything, motion-anything, and html-video",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c cyan,magenta \"pnpm dev:server\" \"pnpm dev:client\"",
+    "dev:parallel": "pnpm --parallel -r run dev",
+    "dev:server": "pnpm --filter @omnistudio/server dev",
+    "dev:client": "pnpm --filter @omnistudio/client dev",
+    "install:tools": "pnpm --filter @omnistudio/server install:tools",
+    "setup": "pnpm --filter @omnistudio/server setup",
+    "build": "pnpm -r run build",
+    "build:server": "pnpm --filter @omnistudio/server build",
+    "build:client": "pnpm --filter @omnistudio/client build",
+    "typecheck": "pnpm --filter @omnistudio/server typecheck && pnpm --filter @omnistudio/client exec tsc -b --pretty false"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.18.0",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

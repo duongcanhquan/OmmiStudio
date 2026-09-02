@@ -1,0 +1,237 @@
+import { Request, Response } from 'express';
+import type { ContentType } from '../services/LLMService';
+import {
+  runGeneratePipeline,
+  runPreviewPipeline,
+} from '../services/PipelineService';
+import { executeNexuPipeline } from '../services/NexuPipelineService';
+import { workspaceService } from '../services/WorkspaceService';
+import type { VietnameseVoiceRegion } from '../services/VoiceService';
+
+export interface RenderHtmlBody {
+  content: string;
+  templateId: string;
+}
+
+export interface GenerateBody {
+  prompt: string;
+  type: ContentType;
+  voiceRegion?: VietnameseVoiceRegion;
+  templateId?: string;
+  brandId?: string;
+  /** Preferred motion-anything recipe / motionType */
+  motionId?: string;
+}
+
+const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
+const VOICE_REGIONS: VietnameseVoiceRegion[] = ['north', 'south'];
+
+/**
+ * POST /api/v1/generate
+ * Body: { prompt, type, voiceRegion?, templateId?, brandId?, motionId? }
+ */
+export async function generate(req: Request, res: Response): Promise<void> {
+  const {
+    prompt,
+    type,
+    voiceRegion = 'south',
+    templateId,
+    brandId,
+    motionId,
+  } = req.body as Partial<GenerateBody>;
+
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing or invalid "prompt" (non-empty string required).',
+    });
+    return;
+  }
+
+  if (!type || !CONTENT_TYPES.includes(type)) {
+    res.status(400).json({
+      success: false,
+      error: `Invalid "type". Expected one of: ${CONTENT_TYPES.join(', ')}.`,
+    });
+    return;
+  }
+
+  if (!VOICE_REGIONS.includes(voiceRegion as VietnameseVoiceRegion)) {
+    res.status(400).json({
+      success: false,
+      error: `Invalid "voiceRegion". Expected one of: ${VOICE_REGIONS.join(', ')}.`,
+    });
+    return;
+  }
+
+  try {
+    const result = await runGeneratePipeline({
+      prompt: prompt.trim(),
+      type,
+      voiceRegion: voiceRegion as VietnameseVoiceRegion,
+      templateId: typeof templateId === 'string' ? templateId : undefined,
+      brandId: typeof brandId === 'string' ? brandId : undefined,
+      preferredMotion:
+        typeof motionId === 'string' && motionId.trim()
+          ? motionId.trim()
+          : undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      type,
+      voiceRegion,
+      templateId: result.templateId,
+      brandId: result.brandId,
+      motionId: result.preferredMotion ?? null,
+      finalOutputPath: result.finalOutputPath,
+      driveUrl: result.driveUrl ?? null,
+      driveFileId: result.driveFileId ?? null,
+      uploadedToDrive: Boolean(result.uploadedToDrive),
+      absoluteFinalPath: result.absoluteFinalPath,
+      workspacePath: result.workspacePath,
+      script: result.script,
+      cliLogs: result.cliLogs,
+      degraded: result.degraded,
+      message: result.uploadedToDrive
+        ? 'Uploaded to Google Drive. Local artifact removed after successful upload.'
+        : result.degraded
+          ? 'Pipeline finished in degraded mode (HTML preview). Drive upload skipped or not configured.'
+          : 'Generation complete (local artifact retained — configure Drive in Settings to auto-upload).',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[generate]', message);
+    res.status(500).json({
+      success: false,
+      error: message,
+    });
+  }
+}
+
+/**
+ * POST /api/v1/generate/preview
+ * Fast HTML preview for the Studio iframe (no MP4 / Drive).
+ */
+export async function generatePreview(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const {
+    prompt,
+    type = 'slide',
+    templateId,
+    brandId,
+    motionId,
+  } = req.body as Partial<GenerateBody>;
+
+  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing or invalid "prompt" (non-empty string required).',
+    });
+    return;
+  }
+
+  const resolvedType: ContentType = CONTENT_TYPES.includes(type as ContentType)
+    ? (type as ContentType)
+    : 'slide';
+
+  try {
+    const result = await runPreviewPipeline({
+      prompt: prompt.trim(),
+      type: resolvedType,
+      voiceRegion: 'south',
+      templateId: typeof templateId === 'string' ? templateId : undefined,
+      brandId: typeof brandId === 'string' ? brandId : undefined,
+      preferredMotion:
+        typeof motionId === 'string' && motionId.trim()
+          ? motionId.trim()
+          : undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      previewUrl: result.previewUrl,
+      workspacePath: result.workspacePath,
+      script: result.script,
+      templateId: result.templateId,
+      brandId: result.brandId,
+      motionId: result.preferredMotion ?? null,
+      message: 'Preview HTML ready.',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[generate/preview]', message);
+    res.status(500).json({
+      success: false,
+      error: message,
+    });
+  }
+}
+
+/**
+ * POST /api/engine/render-html — low-level html-anything job (legacy/direct)
+ */
+export async function renderHtml(req: Request, res: Response): Promise<void> {
+  const { content, templateId } = req.body as Partial<RenderHtmlBody>;
+
+  if (!content || typeof content !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: 'Missing or invalid "content" (string required).',
+    });
+    return;
+  }
+
+  if (!templateId || typeof templateId !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: 'Missing or invalid "templateId" (string required).',
+    });
+    return;
+  }
+
+  let workspacePath: string | undefined;
+  let keepWorkspace = false;
+
+  try {
+    workspacePath = await workspaceService.createWorkspace();
+
+    const result = await executeNexuPipeline(
+      { content, templateId },
+      workspacePath,
+      { tool: 'html-anything' }
+    );
+
+    keepWorkspace = true;
+    res.status(200).json({
+      success: true,
+      workspacePath: result.workspaceDir,
+      inputJsonPath: result.inputJsonPath,
+      outputHtmlPath: result.outputHtmlPath,
+      tool: result.tool,
+      command: result.command,
+      output: {
+        stdout: result.execution.stdout,
+        stderr: result.execution.stderr,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[render-html]', message);
+    res.status(500).json({
+      success: false,
+      error: message,
+      workspacePath: workspacePath ?? null,
+    });
+  } finally {
+    if (workspacePath && !keepWorkspace) {
+      try {
+        await workspaceService.cleanup(workspacePath);
+      } catch {
+        // best-effort
+      }
+    }
+  }
+}
