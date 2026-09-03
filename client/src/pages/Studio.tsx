@@ -30,6 +30,7 @@ import {
 } from '../lib/templateTypes'
 import { cn } from '../lib/utils'
 import { BrandPicker } from '../studio/BrandPicker'
+import { LayoutPicker } from '../studio/LayoutPicker'
 import { ContentMotionPane } from '../studio/ContentMotionPane'
 import { FinalExport } from '../studio/FinalExport'
 import { FloatingActionBar } from '../studio/FloatingActionBar'
@@ -344,11 +345,10 @@ export function StudioPage({
     if (step === 1) return Boolean(selection.selectedTemplate)
     if (step === 2)
       return Boolean(
-        selection.selectedBrand &&
-          (selection.layoutId || defaultLayoutId(selection.selectedTemplate?.id))
+        selection.layoutId || defaultLayoutId(selection.selectedTemplate?.id)
       )
-    if (step === 3) {
-      // Tab «đã có kịch bản» hoặc sau AI: đủ field mẫu + có nội dung
+    if (step === 3) return Boolean(selection.selectedBrand)
+    if (step === 4) {
       return fieldsComplete(selection) && selectionHasContent(selection)
     }
     return false
@@ -356,7 +356,7 @@ export function StudioPage({
 
   const goNext = useCallback(() => {
     setStep((s) => {
-      if (s === 3) {
+      if (s === 4) {
         setSelection((prev) => ({
           ...prev,
           prompt: resolvePrompt(prev),
@@ -365,7 +365,7 @@ export function StudioPage({
         setError(null)
         setRenderPhase('idle')
       }
-      return s < 4 ? ((s + 1) as StudioStep) : s
+      return s < 5 ? ((s + 1) as StudioStep) : s
     })
   }, [])
 
@@ -648,16 +648,17 @@ export function StudioPage({
                 </p>
                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
                   {step === 1 && '1. Chọn loại sản phẩm'}
-                  {step === 2 && '2. Bố cục theo style của loại'}
-                  {step === 3 && '3. Kịch bản / nội dung'}
-                  {step === 4 && '4. Đang xử lý & tải file'}
+                  {step === 2 && '2. Chọn bố cục có sẵn'}
+                  {step === 3 && '3. Màu sắc và style'}
+                  {step === 4 && '4. Kịch bản / nội dung'}
+                  {step === 5 && '5. Chạy và tải file'}
                 </h1>
                 <p className="mt-1 hidden text-xs text-slate-500 sm:block">
-                  Loại → bố cục theo style của loại đó → nội dung → file
+                  Loại → bố cục → màu / style → kịch bản → chạy
                 </p>
               </div>
               <ol className="flex items-center gap-1.5" aria-label="Tiến trình">
-                {([1, 2, 3, 4] as const).map((s) => (
+                {([1, 2, 3, 4, 5] as const).map((s) => (
                   <li key={s}>
                     <button
                       type="button"
@@ -696,9 +697,10 @@ export function StudioPage({
                 className="h-full w-full"
               >
                 {step === 1 && <TemplateGallery />}
-                {step === 2 && <BrandPicker />}
-                {step === 3 && <ContentMotionPane />}
-                {step === 4 && <FinalExport />}
+                {step === 2 && <LayoutPicker />}
+                {step === 3 && <BrandPicker />}
+                {step === 4 && <ContentMotionPane />}
+                {step === 5 && <FinalExport />}
               </motion.div>
             </AnimatePresence>
           </div>

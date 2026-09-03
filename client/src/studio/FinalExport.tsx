@@ -138,7 +138,7 @@ export function FinalExport() {
                       : 'HTML theo thương hiệu. Bấm Tải về khi sẵn sàng.'
               : canRender
                 ? 'Form đã đủ. Hệ thống bắt đầu dựng file.'
-                : 'Quay lại bước 3, điền từng phần rồi bấm Xuất file.'}
+                : 'Quay lại bước 4, điền từng phần rồi bấm Chạy.'}
         </p>
       </header>
 

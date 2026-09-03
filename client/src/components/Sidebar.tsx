@@ -24,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'create',
     label: 'Studio',
-    hint: 'Loại → mẫu → nội dung',
+    hint: 'Loại → bố cục → màu → chạy',
     icon: PlusCircle,
   },
   {

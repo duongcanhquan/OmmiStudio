@@ -6,8 +6,9 @@ import { useStudio, type StudioStep } from './StudioContext'
 const STEPS: { id: StudioStep; label: string }[] = [
   { id: 1, label: 'Loại' },
   { id: 2, label: 'Bố cục' },
-  { id: 3, label: 'Kịch bản' },
-  { id: 4, label: 'File' },
+  { id: 3, label: 'Màu' },
+  { id: 4, label: 'Kịch bản' },
+  { id: 5, label: 'Chạy' },
 ]
 
 export function FloatingActionBar() {
@@ -65,10 +66,10 @@ export function FloatingActionBar() {
         </div>
 
         <p className="flex-1 text-center text-xs text-slate-500 sm:hidden">
-          Bước {step} / 4
+          Bước {step} / 5
         </p>
 
-        {step === 4 && downloadUrl && !renderLoading ? (
+        {step === 5 && downloadUrl && !renderLoading ? (
           <a
             href={downloadUrl}
             download
@@ -77,7 +78,7 @@ export function FloatingActionBar() {
             <Download className="size-4" aria-hidden />
             Tải file
           </a>
-        ) : step === 4 && renderLoading ? (
+        ) : step === 5 && renderLoading ? (
           <span className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-800 px-4 text-sm font-medium text-slate-300">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             Đang xử lý…
@@ -85,14 +86,14 @@ export function FloatingActionBar() {
         ) : (
           <button
             type="button"
-            disabled={step === 4 || !canGoNext || busy}
+            disabled={step === 5 || !canGoNext || busy}
             onClick={goNext}
             className={cn(
               'ml-auto inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950',
               'hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40'
             )}
           >
-            {step === 3 ? 'Xuất file' : 'Tiếp theo'}
+            {step === 4 ? 'Chạy' : 'Tiếp theo'}
             <ChevronRight className="size-4" aria-hidden />
           </button>
         )}

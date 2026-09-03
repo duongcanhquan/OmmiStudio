@@ -10,7 +10,7 @@ import type { StudioBrand } from '../lib/brands'
 import { formIsReady, type ScriptPart } from '../lib/scriptForm'
 import { type TemplateFilter } from '../lib/templateTypes'
 
-export type StudioStep = 1 | 2 | 3 | 4
+export type StudioStep = 1 | 2 | 3 | 4 | 5
 
 export type RenderPhase =
   | 'idle'

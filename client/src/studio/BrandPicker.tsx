@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   BRAND_INDUSTRY_LABELS,
   emptyBrandDraft,
@@ -9,17 +9,7 @@ import {
   type BrandIndustry,
   type StudioBrand,
 } from '../lib/brands'
-import {
-  LAYOUT_STYLE_LABELS,
-  defaultLayoutId,
-  layoutById,
-  layoutsForLoai,
-  layoutsForLoaiStyle,
-  styleOf,
-  stylesForLoai,
-  type LayoutStyle,
-  type StudioLayout,
-} from '../lib/layoutCatalog'
+import { layoutById, type StudioLayout } from '../lib/layoutCatalog'
 import { catalogById, type PreviewFrame } from '../lib/templateCatalog'
 import { cn } from '../lib/utils'
 import { useStudio } from './StudioContext'
@@ -35,7 +25,6 @@ export function BrandPicker() {
   const [industryFilter, setIndustryFilter] = useState<BrandIndustry | 'all'>(
     'all'
   )
-  const [layoutStyle, setLayoutStyle] = useState<LayoutStyle | 'all'>('all')
   const [editing, setEditing] = useState<StudioBrand | null>(null)
 
   const filtered = useMemo(() => {
@@ -46,27 +35,9 @@ export function BrandPicker() {
   const frame =
     catalogById(loaiId)?.frame ?? 'square'
   const loaiName = selection.selectedTemplate?.name ?? 'sản phẩm đã chọn'
+  const layoutName = layoutById(selection.layoutId)?.name ?? 'bố cục đã chọn'
   const activeBrand = selection.selectedBrand ?? brands[0] ?? null
-  const allLayouts = layoutsForLoai(loaiId)
-  const styleOptions = stylesForLoai(loaiId)
-  const layouts = layoutsForLoaiStyle(loaiId, layoutStyle)
-  const activeLayout =
-    layoutById(selection.layoutId) ?? layouts[0] ?? null
-
-  useEffect(() => {
-    setLayoutStyle('all')
-  }, [loaiId])
-
-  useEffect(() => {
-    const nextLayout = defaultLayoutId(loaiId)
-    if (!loaiId || !nextLayout) return
-    const stillValid = layoutsForLoai(loaiId).some(
-      (layout) => layout.id === selection.layoutId
-    )
-    if (!stillValid) {
-      patchSelection({ layoutId: nextLayout })
-    }
-  }, [loaiId, selection.layoutId, patchSelection])
+  const activeLayout = layoutById(selection.layoutId)
 
   function openCreate() {
     setEditing(emptyBrandDraft())
@@ -103,93 +74,17 @@ export function BrandPicker() {
     <div className="space-y-6">
       <header>
         <h2 className="text-xl font-semibold tracking-tight text-slate-50">
-          Bố cục của «{loaiName}»
+          Màu và style cho «{layoutName}»
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-slate-400">
-          Loại đã chọn → chọn style xếp chữ (chữ lớn, đánh số, ảnh, tạp chí…) →
-          bộ màu chỉ nhuộm lên khung đó.
+          Bố cục «{loaiName}» đã chọn. Chọn bộ màu / font / logo — khung bên
+          dưới đổi theo ngay. Xong rồi mới viết kịch bản.
         </p>
       </header>
 
-      <section className="space-y-2">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            Style trong loại này
-          </p>
-          <p className="text-xs text-slate-400">
-            {allLayouts.length} bố cục · lọc theo cách xếp chữ
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          <FilterChip
-            active={layoutStyle === 'all'}
-            onClick={() => setLayoutStyle('all')}
-            label={`Tất cả style (${allLayouts.length})`}
-          />
-          {styleOptions.map((id) => {
-            const count = layoutsForLoaiStyle(loaiId, id).length
-            return (
-              <FilterChip
-                key={id}
-                active={layoutStyle === id}
-                onClick={() => setLayoutStyle(id)}
-                label={`${LAYOUT_STYLE_LABELS[id]} (${count})`}
-              />
-            )
-          })}
-        </div>
-      </section>
-
-      {layouts.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          Loại này chưa có bố cục — sẽ dùng mẫu mặc định.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {layouts.map((layout, index) => {
-            const selected = activeLayout?.id === layout.id
-            return (
-              <motion.button
-                key={layout.id}
-                type="button"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index * 0.04, 0.2) }}
-                onClick={() =>
-                  patchSelection({
-                    layoutId: layout.id,
-                    selectedBrand: activeBrand,
-                  })
-                }
-                className={cn(
-                  'cursor-pointer rounded-2xl border p-3 text-left transition-shadow',
-                  selected
-                    ? 'border-cyan-400/55 bg-slate-900/80 shadow-[0_0_24px_rgba(34,211,238,0.12)]'
-                    : 'border-slate-800 bg-slate-950/60 hover:border-slate-600'
-                )}
-              >
-                <div className="relative mb-3">
-                  {activeBrand ? (
-                    <LayoutPreview layout={layout} brand={activeBrand} />
-                  ) : (
-                    <div className="aspect-square rounded-lg bg-slate-900" />
-                  )}
-                  {selected && (
-                    <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-cyan-500 text-slate-950">
-                      <Check className="size-4" aria-hidden />
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm font-semibold text-slate-50">{layout.name}</p>
-                <p className="mt-0.5 text-[10px] font-medium text-cyan-400/80">
-                  {LAYOUT_STYLE_LABELS[styleOf(layout)]}
-                </p>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
-                  {layout.blurb}
-                </p>
-              </motion.button>
-            )
-          })}
+      {activeLayout && activeBrand && (
+        <div className="mx-auto w-full max-w-sm">
+          <LayoutPreview layout={activeLayout} brand={activeBrand} large />
         </div>
       )}
 
@@ -200,7 +95,7 @@ export function BrandPicker() {
               Màu, chữ, logo
             </p>
             <p className="text-xs text-slate-400">
-              Đổi bộ màu để xem bố cục đổi theo — chưa phải nội dung thật.
+              Nhuộm lên đúng bố cục đã chọn — chưa phải nội dung thật.
             </p>
           </div>
           <button
