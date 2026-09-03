@@ -9,7 +9,7 @@ import {
 } from '../config/nexu-tools';
 import { execCommand, quoteShellArg } from '../utils/execCommand';
 import {
-  generateVideoScript,
+  resolveVideoScript,
   type ContentType,
   type VideoScript,
 } from './LLMService';
@@ -220,10 +220,9 @@ function buildBaseHtml(
 </head>
 <body>
   <header class="meta">
-    <strong>OmniStudio OS</strong> · ${escapeHtml(script.title || 'Untitled')}
-    ${templateId ? ` · template: ${escapeHtml(templateId)}` : ''}
-    ${brandId ? ` · brand: ${escapeHtml(brandId)}` : ''}
-    · ${escapeHtml(prompt.slice(0, 120))}
+    <strong>OmniStudio</strong> · ${escapeHtml(script.title || 'Chưa đặt tên')}
+    ${templateId ? ` · mẫu: ${escapeHtml(templateId)}` : ''}
+    ${brandId ? ` · thương hiệu: ${escapeHtml(brandId)}` : ''}
   </header>
   <main id="scenes">
 ${scenesHtml}
@@ -265,15 +264,13 @@ function enrichPrompt(
   preferredMotion?: string
 ): string {
   const extras: string[] = [];
-  if (templateId) extras.push(`Template ID: ${templateId}`);
-  if (brandId) extras.push(`Brand / design system ID: ${brandId}`);
+  if (templateId) extras.push(`Mã mẫu: ${templateId}`);
+  if (brandId) extras.push(`Mã thương hiệu: ${brandId}`);
   if (preferredMotion) {
-    extras.push(
-      `Prefer motionType "${preferredMotion}" for headers/scenes when appropriate`
-    );
+    extras.push(`Ưu tiên hiệu ứng «${preferredMotion}» cho cảnh mở / tiêu đề`);
   }
   if (extras.length === 0) return prompt;
-  return `${prompt.trim()}\n\nConstraints:\n- ${extras.join('\n- ')}\n- Match the brand voice and visual tone implied by the brand id.`;
+  return `${prompt.trim()}\n\nRàng buộc:\n- ${extras.join('\n- ')}\n- Giữ giọng và màu sắc thương hiệu. Toàn bộ chữ trên hình phải là tiếng Việt.`;
 }
 
 function applyPreferredMotion(
@@ -367,7 +364,7 @@ export async function runVideoPipeline(
   let keepWorkspace = false;
 
   try {
-    let script = await generateVideoScript(
+    let script = await resolveVideoScript(
       enrichPrompt(prompt, templateId, brandId, preferredMotion),
       'video'
     );
@@ -563,7 +560,7 @@ export async function runPreviewPipeline(
   let keepWorkspace = false;
 
   try {
-    let script = await generateVideoScript(
+    let script = await resolveVideoScript(
       enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion),
       type
     );
@@ -665,7 +662,7 @@ export async function runGeneratePipeline(
   let keepWorkspace = false;
 
   try {
-    let script = await generateVideoScript(
+    let script = await resolveVideoScript(
       enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion),
       type
     );

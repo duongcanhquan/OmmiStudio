@@ -14,7 +14,7 @@ export async function listProjectsHandler(
     const projects = await listProjects();
     res.status(200).json({ success: true, projects });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -33,7 +33,7 @@ export async function getProjectHandler(
     }
     res.status(200).json({ success: true, project });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -52,7 +52,7 @@ export async function deleteProjectHandler(
     }
     res.status(200).json({ success: true, message: 'Đã xóa dự án.' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }

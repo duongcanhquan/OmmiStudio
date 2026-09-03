@@ -19,7 +19,13 @@ import { resolveAssetUrl } from '../api/engine'
 import {
   REQUIRED_FIELDS_BY_TYPE,
   TEMPLATE_AI_GUIDANCE,
+  TEMPLATE_FORMAT_NOTE,
+  TEMPLATE_SCRIPT_HELP,
   TEMPLATE_TYPE_LABELS,
+  getMissingRequiredFields,
+  isFieldRequired,
+  isSettingsField,
+  mergeFieldDefaults,
   type RequiredContentField,
   type TemplateType,
 } from '../lib/templateTypes'
@@ -53,7 +59,12 @@ export function ContentMotionPane() {
   const editorRef = useRef<HTMLDivElement>(null)
   const templateType: TemplateType =
     selection.selectedTemplate?.type ?? 'deck'
-  const requiredFields = REQUIRED_FIELDS_BY_TYPE[templateType] ?? []
+  const allFields = REQUIRED_FIELDS_BY_TYPE[templateType] ?? []
+  const contentFields = allFields.filter((f) => !isSettingsField(f))
+  const settingFields = allFields.filter((f) => isSettingsField(f))
+  const coreFields = contentFields.filter((f) => isFieldRequired(f))
+  const extraFields = contentFields.filter((f) => !isFieldRequired(f))
+  const help = TEMPLATE_SCRIPT_HELP[templateType]
   const brand = selection.selectedBrand
 
   const grouped = useMemo(() => {
@@ -72,9 +83,17 @@ export function ContentMotionPane() {
 
   const isVideo = selection.contentType === 'video'
 
-  const missingRequired = requiredFields
-    .filter((f) => f.required)
-    .filter((f) => !(selection.fieldValues[f.key] ?? '').trim())
+  const missingRequired = getMissingRequiredFields(
+    templateType,
+    selection.fieldValues,
+    {
+      aiBrief: selection.aiBrief,
+      richHtml: selection.richHtml,
+      scriptNotes: selection.scriptNotes,
+    }
+  )
+  const missingLabels = missingRequired.map((f) => f.label).join(', ')
+  const missingKeys = new Set(missingRequired.map((f) => f.key))
 
   const briefMissing = !selection.aiBrief.trim()
   const hasScriptBody = Boolean(
@@ -101,6 +120,17 @@ export function ContentMotionPane() {
       editorRef.current.innerHTML = selection.richHtml
     }
   }, [selection.richHtml])
+
+  useEffect(() => {
+    const merged = mergeFieldDefaults(templateType, selection.fieldValues)
+    const changed = settingFields.some(
+      (field) =>
+        (merged[field.key] ?? '') !== (selection.fieldValues[field.key] ?? '')
+    )
+    if (changed) {
+      patchSelection({ fieldValues: merged })
+    }
+  }, [templateType])
 
   function exec(cmd: string, value?: string) {
     editorRef.current?.focus()
@@ -130,9 +160,14 @@ export function ContentMotionPane() {
           Soạn thảo kịch bản
         </h2>
         <p className="text-sm text-slate-400">
-          Chọn một hướng: đã có kịch bản thì điền trực tiếp, hoặc để AI viết
-          theo yêu cầu + mẫu + thương hiệu — rồi sang xuất bản.
+          {help.intro} Hoặc chuyển tab AI và chỉ viết brief — hệ thống tự điền
+          thông số mẫu.
         </p>
+        {TEMPLATE_FORMAT_NOTE[templateType] && (
+          <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
+            {TEMPLATE_FORMAT_NOTE[templateType]}
+          </p>
+        )}
       </header>
 
       {/* Context strip */}
@@ -170,14 +205,14 @@ export function ContentMotionPane() {
           onClick={() => setTab('manual')}
           icon={FileText}
           title="Đã có kịch bản"
-          subtitle="Điền nội dung / thông tin sẵn có"
+          subtitle="Tiêu đề + viết nội dung"
         />
         <TabButton
           active={tab === 'ai'}
           onClick={() => setTab('ai')}
           icon={Sparkles}
           title="Chưa có — AI viết giúp"
-          subtitle="Brief + mẫu + brand → kịch bản"
+          subtitle="Chỉ cần một brief ngắn"
         />
       </div>
 
@@ -195,24 +230,61 @@ export function ContentMotionPane() {
             {tab === 'manual' ? (
               <>
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-slate-300">
-                  Dán hoặc gõ kịch bản / nội dung đã có. Điền đủ trường bắt buộc
-                  của mẫu «{TEMPLATE_TYPE_LABELS[templateType]}», rồi tạo xem
-                  trước hoặc sang bước xuất bản.
+                  <p className="font-medium text-cyan-100">
+                    Cần điền: {coreFields.map((f) => f.label).join(', ') || 'nội dung kịch bản'}
+                    .
+                  </p>
+                  <p className="mt-1 text-slate-400">{help.intro}</p>
                 </div>
 
                 <RequiredFieldsBlock
-                  fields={requiredFields}
+                  fields={coreFields}
                   values={selection.fieldValues}
-                  missing={missingRequired.length}
+                  missingKeys={missingKeys}
                   onChange={setField}
+                  title="Thông tin cần có"
                 />
 
                 <ScriptEditor
                   editorRef={editorRef}
                   onExec={exec}
                   onSync={syncRich}
-                  placeholder="Dán kịch bản đầy đủ vào đây: các cảnh, lời thoại, bullet slide…"
+                  placeholder={help.placeholder}
                 />
+
+                {extraFields.length > 0 && (
+                  <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Chi tiết thêm — không bắt buộc
+                    </summary>
+                    <div className="mt-3">
+                      <RequiredFieldsBlock
+                        fields={extraFields}
+                        values={selection.fieldValues}
+                        missingKeys={missingKeys}
+                        onChange={setField}
+                        title=""
+                      />
+                    </div>
+                  </details>
+                )}
+
+                {settingFields.length > 0 && (
+                  <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Cài đặt mẫu — đã chọn sẵn, sửa nếu cần
+                    </summary>
+                    <div className="mt-3">
+                      <RequiredFieldsBlock
+                        fields={settingFields}
+                        values={selection.fieldValues}
+                        missingKeys={missingKeys}
+                        onChange={setField}
+                        title=""
+                      />
+                    </div>
+                  </details>
+                )}
 
                 <MotionVoiceRow
                   isVideo={isVideo}
@@ -245,30 +317,31 @@ export function ContentMotionPane() {
                     onClick={goNext}
                     className={nextBtn}
                   >
-                    Sang xuất bản
+                    Xuất file hoàn chỉnh
                     <ArrowRight className="size-4" aria-hidden />
                   </button>
                 </div>
                 {!readyForPublish && (
-                  <p className="text-xs text-amber-300/90">
+                  <p role="alert" className="text-xs text-amber-300/90">
                     {missingRequired.length > 0
-                      ? `Còn thiếu ${missingRequired.length} trường bắt buộc. `
-                      : ''}
-                    {!hasScriptBody &&
-                      !Object.values(selection.fieldValues).some((v) =>
-                        v?.trim()
-                      ) &&
-                      'Cần nội dung kịch bản hoặc thông tin mẫu.'}
+                      ? `Còn thiếu: ${missingLabels}. Điền các ô có dấu * hoặc viết kịch bản bên trên.`
+                      : !hasScriptBody
+                        ? 'Viết tiêu đề / kịch bản, hoặc chuyển tab AI để chỉ cần một brief.'
+                        : ''}
                   </p>
                 )}
               </>
             ) : (
               <>
                 <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3 text-xs leading-relaxed text-slate-300">
-                  Chưa có kịch bản? Mô tả yêu cầu — AI viết theo tính chất mẫu
-                  «{TEMPLATE_TYPE_LABELS[templateType]}»
-                  {brand ? ` và giọng brand «${brand.name}»` : ''}. Sau khi AI
-                  xong, bạn được chuyển sang tab chỉnh sửa.
+                  <p className="font-medium text-violet-100">
+                    Chỉ cần 1 ô: mô tả bạn muốn gì.
+                  </p>
+                  <p className="mt-1 text-slate-400">
+                    AI viết theo mẫu «{TEMPLATE_TYPE_LABELS[templateType]}»
+                    {brand ? ` và giọng «${brand.name}»` : ''}. Thông số kỹ thuật
+                    đã chọn sẵn — mở phần cài đặt nếu muốn đổi.
+                  </p>
                 </div>
 
                 <p className="text-xs leading-relaxed text-slate-500">
@@ -277,8 +350,7 @@ export function ContentMotionPane() {
 
                 <label className="block space-y-1.5 text-sm">
                   <span className="text-slate-200">
-                    Yêu cầu / brief sáng tạo{' '}
-                    <span className="text-rose-400">*</span>
+                    Bạn muốn làm gì? <span className="text-rose-400">*</span>
                   </span>
                   <textarea
                     rows={5}
@@ -286,33 +358,48 @@ export function ContentMotionPane() {
                     onChange={(e) =>
                       patchSelection({ aiBrief: e.target.value })
                     }
-                    placeholder="VD: Video 45s Open Day — hook phụ huynh, 3 lợi ích nổi bật, CTA đăng ký. Giọng ấm, không nói «rẻ»."
+                    placeholder={help.placeholder}
                     className={fieldClass}
+                    aria-invalid={briefMissing}
+                    aria-describedby="brief-help"
                   />
+                  <span id="brief-help" className="block text-[11px] text-slate-500">
+                    Viết như nhắn đồng nghiệp: đối tượng, ý chính, độ dài, CTA.
+                    Không cần điền outline / chi tiết riêng.
+                  </span>
                 </label>
 
-                <label className="block space-y-1.5 text-sm">
-                  <span className="text-slate-200">
-                    Cấu trúc mong muốn (tuỳ chọn)
-                  </span>
+                <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Cấu trúc mong muốn — không bắt buộc
+                  </summary>
                   <textarea
                     rows={3}
                     value={selection.scriptNotes}
                     onChange={(e) =>
                       patchSelection({ scriptNotes: e.target.value })
                     }
-                    placeholder="VD: Hook → 3 lợi ích → CTA · hoặc 5 slide: mở / vấn đề / giải pháp / chứng cứ / kết"
-                    className={fieldClass}
+                    placeholder="VD: Hook → 3 lợi ích → CTA"
+                    className={cn(fieldClass, 'mt-3')}
                   />
-                </label>
+                </details>
 
-                <RequiredFieldsBlock
-                  fields={requiredFields}
-                  values={selection.fieldValues}
-                  missing={missingRequired.length}
-                  onChange={setField}
-                  title="Thông tin mẫu (AI cần để viết đúng)"
-                />
+                {settingFields.length > 0 && (
+                  <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Cài đặt mẫu — đã chọn sẵn, sửa nếu cần
+                    </summary>
+                    <div className="mt-3">
+                      <RequiredFieldsBlock
+                        fields={settingFields}
+                        values={selection.fieldValues}
+                        missingKeys={missingKeys}
+                        onChange={setField}
+                        title=""
+                      />
+                    </div>
+                  </details>
+                )}
 
                 <MotionVoiceRow
                   isVideo={isVideo}
@@ -354,10 +441,10 @@ export function ContentMotionPane() {
                   )}
                 </div>
                 {(briefMissing || missingRequired.length > 0) && (
-                  <p className="text-xs text-amber-300/90">
-                    {briefMissing && 'Điền brief yêu cầu. '}
-                    {missingRequired.length > 0 &&
-                      `Điền đủ ${missingRequired.length} trường mẫu.`}
+                  <p role="alert" className="text-xs text-amber-300/90">
+                    {briefMissing
+                      ? 'Điền ô «Bạn muốn làm gì?» — một đoạn là đủ.'
+                      : `Còn thiếu: ${missingLabels}.`}
                   </p>
                 )}
               </>
@@ -395,8 +482,8 @@ export function ContentMotionPane() {
                 <Eye className="size-7 text-slate-600" aria-hidden />
                 <p className="max-w-xs text-sm text-slate-400">
                   {tab === 'ai'
-                    ? 'Điền brief → AI viết kịch bản → chỉnh ở tab «Đã có kịch bản» → xem trước → xuất bản.'
-                    : 'Điền nội dung → Tạo xem trước → Sang xuất bản.'}
+                    ? 'Viết brief → AI viết kịch bản → chỉnh nếu cần → xem trước.'
+                    : 'Điền tiêu đề + kịch bản → Xuất file hoàn chỉnh.'}
                 </p>
               </div>
             )}
@@ -461,78 +548,91 @@ function TabButton({
 function RequiredFieldsBlock({
   fields,
   values,
-  missing,
+  missingKeys,
   onChange,
-  title = 'Thông tin bắt buộc cho mẫu',
+  title = 'Thông tin cần có',
 }: {
   fields: RequiredContentField[]
   values: Record<string, string>
-  missing: number
+  missingKeys: Set<string>
   onChange: (key: string, value: string) => void
   title?: string
 }) {
+  if (fields.length === 0) return null
+  const missingHere = fields.filter((f) => missingKeys.has(f.key)).length
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {title}
-        </h3>
-        {missing > 0 ? (
-          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-            Còn thiếu {missing}
-          </span>
-        ) : (
-          <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-            Đủ tối thiểu
-          </span>
-        )}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {fields.map((f) => (
-          <label
-            key={f.key}
-            className={cn('space-y-1.5 text-sm', f.multiline && 'sm:col-span-2')}
-          >
-            <span className="text-slate-300">
-              {f.label}
-              {f.required && <span className="text-rose-400"> *</span>}
+      {title ? (
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {title}
+          </h3>
+          {missingHere > 0 ? (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+              Thiếu: {fields.filter((f) => missingKeys.has(f.key)).map((f) => f.label).join(', ')}
             </span>
-            {f.options?.length ? (
-              <select
-                value={values[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                className={fieldClass}
-              >
-                <option value="">
-                  {f.placeholder || '— Chọn —'}
-                </option>
-                {f.options.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            ) : f.multiline ? (
-              <textarea
-                rows={3}
-                value={values[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                placeholder={f.placeholder}
-                className={fieldClass}
-              />
-            ) : (
-              <input
-                value={values[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                placeholder={f.placeholder}
-                className={fieldClass}
-              />
-            )}
-            {f.hint && (
-              <span className="block text-[11px] text-slate-500">{f.hint}</span>
-            )}
-          </label>
-        ))}
+          ) : (
+            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+              Đủ để tiếp tục
+            </span>
+          )}
+        </div>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {fields.map((f) => {
+          const invalid = missingKeys.has(f.key)
+          const required = isFieldRequired(f)
+          return (
+            <label
+              key={f.key}
+              className={cn('space-y-1.5 text-sm', f.multiline && 'sm:col-span-2')}
+            >
+              <span className="text-slate-300">
+                {f.label}
+                {required && <span className="text-rose-400"> *</span>}
+              </span>
+              {f.options?.length ? (
+                <select
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  aria-invalid={invalid}
+                  className={cn(fieldClass, invalid && invalidFieldClass)}
+                >
+                  <option value="">— Chọn —</option>
+                  {f.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : f.multiline ? (
+                <textarea
+                  rows={3}
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  aria-invalid={invalid}
+                  className={cn(fieldClass, invalid && invalidFieldClass)}
+                />
+              ) : (
+                <input
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  aria-invalid={invalid}
+                  className={cn(fieldClass, invalid && invalidFieldClass)}
+                />
+              )}
+              {invalid ? (
+                <span className="block text-[11px] text-amber-300">
+                  Ô này còn trống — {f.hint || 'điền hoặc viết trong khung kịch bản.'}
+                </span>
+              ) : f.hint ? (
+                <span className="block text-[11px] text-slate-500">{f.hint}</span>
+              ) : null}
+            </label>
+          )
+        })}
       </div>
     </section>
   )
@@ -552,8 +652,11 @@ function ScriptEditor({
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-        Nội dung kịch bản
+        Kịch bản / nội dung
       </h3>
+      <p className="text-[11px] text-slate-500">
+        Viết tự do. Một đoạn ý chính cũng được — không cần tách outline riêng.
+      </p>
       <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/80 p-1">
         <ToolBtn label="In đậm" onClick={() => onExec('bold')} icon={Bold} />
         <ToolBtn label="Nghiêng" onClick={() => onExec('italic')} icon={Italic} />
@@ -690,6 +793,9 @@ const fieldClass = cn(
   'placeholder:text-slate-500',
   'focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20'
 )
+
+const invalidFieldClass =
+  'border-amber-500/70 focus:border-amber-400 focus:ring-amber-500/25'
 
 const primaryBtn = cn(
   'inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-950',

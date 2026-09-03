@@ -26,9 +26,9 @@ interface GenerationWizardProps {
 }
 
 const CONTENT_OPTIONS: { value: ContentType; label: string; hint: string }[] = [
-  { value: 'video', label: 'Video', hint: 'MP4 with voiceover' },
-  { value: 'slide', label: 'Slide', hint: 'HTML deck' },
-  { value: 'poster', label: 'Poster', hint: 'Single HTML frame' },
+  { value: 'video', label: 'Video', hint: 'MP4 kèm lời đọc' },
+  { value: 'slide', label: 'Slide', hint: 'Bài thuyết trình HTML' },
+  { value: 'poster', label: 'Poster', hint: 'Một khung hình HTML' },
 ]
 
 export function GenerationWizard({
@@ -70,7 +70,7 @@ export function GenerationWizard({
       } catch (err) {
         if (cancelled) return
         const message =
-          err instanceof Error ? err.message : 'Failed to load templates/brands'
+          err instanceof Error ? err.message : 'Không tải được mẫu / thương hiệu'
         setAssetsError(message)
       } finally {
         if (!cancelled) setAssetsLoading(false)
@@ -95,11 +95,11 @@ export function GenerationWizard({
     >
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">
-          Create New
+          Tạo nội dung mới
         </h1>
         <p className="text-sm text-zinc-400">
-          Pick a template + brand, then describe the brief. Output uploads to
-          Google Drive when configured.
+          Chọn mẫu và thương hiệu, rồi mô tả yêu cầu. File xuất ra máy này;
+          chỉ đưa lên Drive khi bạn bật trong Cài đặt.
         </p>
       </header>
 
@@ -108,7 +108,7 @@ export function GenerationWizard({
           htmlFor={promptId}
           className="block text-sm font-medium text-zinc-200"
         >
-          Prompt <span className="text-blue-400">*</span>
+          Mô tả yêu cầu <span className="text-blue-400">*</span>
         </label>
         <textarea
           id={promptId}
@@ -117,7 +117,7 @@ export function GenerationWizard({
           disabled={loading}
           value={values.prompt}
           onChange={(e) => onChange({ prompt: e.target.value })}
-          placeholder="What do you want to create today?"
+          placeholder="Bạn muốn tạo nội dung gì hôm nay?"
           className={cn(
             'w-full resize-y rounded-xl border border-zinc-700 bg-zinc-900/80 px-4 py-3 text-sm leading-relaxed text-zinc-100',
             'placeholder:text-zinc-500',
@@ -133,7 +133,7 @@ export function GenerationWizard({
           htmlFor={typeId}
           className="block text-sm font-medium text-zinc-200"
         >
-          Content type
+          Loại nội dung
         </label>
         <select
           id={typeId}
@@ -157,10 +157,10 @@ export function GenerationWizard({
           htmlFor={templateId}
           className="block text-sm font-medium text-zinc-200"
         >
-          Choose Template
+          Chọn mẫu
         </label>
         {assetsLoading ? (
-          <p className="text-xs text-zinc-500">Scanning local nexu-io skills…</p>
+          <p className="text-xs text-zinc-500">Đang quét mẫu trên máy…</p>
         ) : (
           <div className="grid max-h-40 grid-cols-1 gap-2 overflow-y-auto studio-scrollbar sm:grid-cols-2">
             {templates.map((tpl) => {
@@ -213,7 +213,7 @@ export function GenerationWizard({
           htmlFor={brandId}
           className="block text-sm font-medium text-zinc-200"
         >
-          Choose Brand Identity
+          Chọn thương hiệu
         </label>
         <select
           id={brandId}
@@ -223,7 +223,7 @@ export function GenerationWizard({
           className={selectClass}
         >
           {brands.length === 0 && (
-            <option value="">No brands found — run pnpm setup</option>
+            <option value="">Chưa có thương hiệu — chạy pnpm setup</option>
           )}
           {brands.map((brand) => (
             <option key={brand.id} value={brand.id}>
@@ -233,13 +233,13 @@ export function GenerationWizard({
           ))}
         </select>
         <p className="text-xs text-zinc-500">
-          Sourced from open-design <code className="text-zinc-400">design-systems/</code>
+          Lấy từ bộ nhận diện local (open-design)
         </p>
       </div>
 
       {assetsError && (
         <p className="text-xs text-amber-400" role="status">
-          Asset scan warning: {assetsError}. Using whatever list is available.
+          Cảnh báo quét tài nguyên: {assetsError}. Đang dùng danh sách hiện có.
         </p>
       )}
 
@@ -249,7 +249,7 @@ export function GenerationWizard({
             id={voiceLegendId}
             className="text-sm font-medium text-zinc-200"
           >
-            Voice region
+            Giọng đọc
           </legend>
           <div
             className="grid grid-cols-1 gap-2 sm:grid-cols-2"
@@ -260,12 +260,12 @@ export function GenerationWizard({
               [
                 {
                   value: 'north' as const,
-                  title: 'North Vietnam',
+                  title: 'Miền Bắc',
                   desc: 'Nam Minh · Hà Nội',
                 },
                 {
                   value: 'south' as const,
-                  title: 'South Vietnam',
+                  title: 'Miền Nam',
                   desc: 'Hoài My · Sài Gòn',
                 },
               ] as const
@@ -319,12 +319,12 @@ export function GenerationWizard({
           {loading ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Generating…
+              Đang tạo…
             </>
           ) : (
             <>
               <Sparkles className="size-4" aria-hidden />
-              Generate Content
+              Tạo nội dung
             </>
           )}
         </button>

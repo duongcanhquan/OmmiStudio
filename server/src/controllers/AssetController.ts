@@ -19,7 +19,7 @@ export async function listTemplates(
     const templates = await getAvailableTemplates();
     res.status(200).json({ success: true, templates });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -30,7 +30,7 @@ export async function listBrands(_req: Request, res: Response): Promise<void> {
     const brands = await getAvailableBrands();
     res.status(200).json({ success: true, brands });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -44,7 +44,7 @@ export async function listMotions(_req: Request, res: Response): Promise<void> {
     ).sort();
     res.status(200).json({ success: true, motions, categories });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }

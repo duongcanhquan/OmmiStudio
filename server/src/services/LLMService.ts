@@ -69,23 +69,29 @@ function resolveBaseUrl(providerId: LlmProviderId, override?: string): string {
 }
 
 function buildSystemPrompt(contentType: ContentType): string {
+  const typeLabel =
+    contentType === 'video'
+      ? 'video'
+      : contentType === 'poster'
+        ? 'poster'
+        : 'slide thuyết trình';
   return [
-    'You are the OmniStudio OS AI Brain — a senior Vietnamese content director.',
-    `Content type: ${contentType}.`,
-    'Produce a production-ready storyboard for local HTML → motion → video tooling.',
+    'Bạn là biên tập nội dung OmniStudio — chỉ viết tiếng Việt có dấu.',
+    `Loại sản phẩm: ${typeLabel}.`,
+    'Tạo bảng cảnh sẵn sàng dựng HTML / chuyển động / video trên máy này.',
     '',
-    'STRICT OUTPUT RULES:',
-    '1. Respond with ONLY valid JSON. No markdown, no code fences, no commentary.',
-    '2. The JSON MUST match this schema exactly:',
+    'QUY TẮC BẮT BUỘC:',
+    '1. Chỉ trả về JSON hợp lệ. Không markdown, không giải thích, không tiếng Anh, không tiếng Trung.',
+    '2. JSON đúng schema:',
     SCENE_SCHEMA_DESCRIPTION,
-    '3. language must be "vi" (Vietnamese).',
-    '4. visualText: short on-screen copy (Vietnamese), suitable for a single frame.',
-    '5. voiceoverText: natural spoken Vietnamese for TTS. For poster/slide, you may use "".',
-    '6. motionType: one of typewriter | fade-in | glitch | slide-up | zoom-in | ken-burns.',
-    '7. duration: seconds (number > 0) for that scene. Sum of durations should match the requested total length when provided.',
-    '8. scenes: follow the requested scene/block count from the user brief when provided (allow 3–60). sceneId starts at 1.',
-    '9. For long videos (>10 minutes): group as chapters/blocks; keep visualText short; voiceoverText can be longer.',
-    '10. Prefer clear Vietnamese diacritics; avoid broken encoding.',
+    '3. language phải là "vi".',
+    '4. visualText: chữ hiện trên màn hình — tiếng Việt ngắn, một khung hình.',
+    '5. voiceoverText: lời đọc tiếng Việt tự nhiên. Poster/slide có thể để "".',
+    '6. motionType: một trong typewriter | fade-in | glitch | slide-up | zoom-in | ken-burns.',
+    '7. duration: số giây > 0. Tổng thời lượng các cảnh khớp brief nếu có.',
+    '8. scenes: theo số cảnh/block người dùng yêu cầu (3–60). sceneId bắt đầu từ 1.',
+    '9. Video dài (>10 phút): chia chương/block; visualText ngắn; voiceoverText được dài hơn.',
+    '10. Luôn dùng tiếng Việt có dấu; không để tofu / mất dấu.',
   ].join('\n');
 }
 
@@ -460,6 +466,190 @@ function getApiKeySafe(): string {
   }
 }
 
+function stripHtmlish(text: string): string {
+  return String(text ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function firstMatch(text: string, patterns: RegExp[]): string {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const value = match?.[1]?.trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+function extractUserStory(prompt: string): { title: string; body: string } {
+  const text = stripHtmlish(prompt);
+  const title = firstMatch(text, [
+    /(?:Tiêu đề(?:\s+(?:video|bài thuyết trình|poster|tài liệu|bản tin|brochure|quiz))?|Headline|Caption chính|Chủ đề|Tên sự kiện|Tên phiếu)\s*:\s*(.+)/i,
+  ]).slice(0, 120);
+
+  const sectionBody = firstMatch(text, [
+    /=== BẢN NHÁP HIỆN CÓ[^\n]*===\s*([\s\S]*?)(?=\n=== |\s*$)/,
+    /Nội dung soạn thảo:\s*([\s\S]*?)(?=\n=== |\s*$)/,
+    /=== BRIEF SÁNG TẠO[^\n]*===\s*([\s\S]*?)(?=\n=== |\s*$)/,
+    /=== CẤU TRÚC[^\n]*===\s*([\s\S]*?)(?=\n=== |\s*$)/,
+  ]);
+
+  const fieldBits = [
+    firstMatch(text, [/Ý chính[^:]*:\s*([\s\S]*?)(?=\n[A-ZÀ-Ỵa-zà-ỹ].+:|\n=== |\s*$)/]),
+    firstMatch(text, [/(?:Hook|Câu mở đầu)[^:]*:\s*(.+)/i]),
+    firstMatch(text, [/(?:Dàn ý cảnh|Outline)[^:]*:\s*([\s\S]*?)(?=\n[A-ZÀ-Ỵa-zà-ỹ].+:|\n=== |\s*$)/]),
+  ].filter(Boolean);
+
+  let body = sectionBody || fieldBits.join('\n\n').trim();
+  if (!body) {
+    body = text
+      .replace(/=== NHIỆM VỤ ===[\s\S]*?(?=\n=== |$)/g, '')
+      .replace(/=== THƯƠNG HIỆU ===[\s\S]*?(?=\n=== |$)/g, '')
+      .replace(/=== OUTPUT ===[\s\S]*$/g, '')
+      .replace(/=== ĐẦU RA ===[\s\S]*$/g, '')
+      .replace(/^Constraints:[\s\S]*$/gm, '')
+      .trim();
+  }
+
+  if (!body) body = text;
+  return { title: title || body.split('\n').find((l) => l.trim())?.slice(0, 80) || 'OmniStudio', body };
+}
+
+function splitStoryChunks(body: string): string[] {
+  const cleaned = body
+    .split('\n')
+    .filter((line) => {
+      const t = line.trim();
+      if (!t) return true;
+      if (/^===/.test(t)) return false;
+      if (/^(Loại nội dung|Template ID|Brand |Constraints|Tỷ lệ|Độ phân giải|Nhịp|Hình thức âm thanh|Thời lượng|Số cảnh)\b/i.test(t)) {
+        return false;
+      }
+      return true;
+    })
+    .join('\n')
+    .trim();
+
+  const byMarker = cleaned
+    .split(/(?:^|\n)\s*(?:cảnh|scene|slide|chương)(?:\s*\d+|\s+cuối)?\s*[:.\-–)]*\s*/i)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (byMarker.length >= 2) return byMarker;
+
+  const byNumber = cleaned
+    .split(/(?:^|\n)\s*\d+[\.)]\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (byNumber.length >= 2) return byNumber;
+
+  const byPara = cleaned
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (byPara.length >= 2) return byPara;
+
+  const byLine = cleaned
+    .split('\n')
+    .map((part) => part.replace(/^[-•*]\s+/, '').trim())
+    .filter((part) => part.length > 0);
+  if (byLine.length >= 2 && byLine.length <= 24) return byLine;
+
+  return cleaned ? [cleaned] : [];
+}
+
+/**
+ * Storyboard từ kịch bản người dùng — không gọi LLM.
+ */
+export function buildLocalVideoScript(
+  userPrompt: string,
+  contentType: ContentType
+): VideoScript {
+  const { title, body } = extractUserStory(userPrompt);
+  const chunks = splitStoryChunks(body);
+  const usable = chunks.length > 0 ? chunks : [title || 'Nội dung OmniStudio'];
+
+  const totalSec = Number(
+    firstMatch(userPrompt, [/Thời lượng[^:]*:\s*(\d+)/i])
+  );
+  const hintedCount = Number(
+    firstMatch(userPrompt, [/Số cảnh[^:]*:\s*(\d+)/i])
+  );
+  const count = Math.min(
+    24,
+    Math.max(1, hintedCount && hintedCount <= 24 ? hintedCount : usable.length)
+  );
+
+  let parts = usable;
+  if (usable.length === 1 && count > 1) {
+    const sentences = usable[0]
+      .split(/(?<=[.!?…])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sentences.length >= count) {
+      parts = Array.from({ length: count }, (_, i) => {
+        const start = Math.round((i * sentences.length) / count);
+        const end = Math.round(((i + 1) * sentences.length) / count);
+        return sentences.slice(start, end).join(' ');
+      }).filter(Boolean);
+    }
+  }
+
+  const perScene =
+    contentType === 'video'
+      ? Math.max(
+          3,
+          Math.min(
+            30,
+            Math.round((Number.isFinite(totalSec) && totalSec > 0 ? totalSec : parts.length * 8) / parts.length)
+          )
+        )
+      : 4;
+
+  const scenes: VideoScene[] = parts.slice(0, 24).map((chunk, index) => {
+    const visualText = chunk.replace(/\s+/g, ' ').trim().slice(0, 400);
+    return {
+      sceneId: index + 1,
+      visualText: visualText || `${title} — phần ${index + 1}`,
+      voiceoverText: contentType === 'video' ? visualText : '',
+      motionType: index === 0 ? 'fade-in' : 'slide-up',
+      duration: perScene,
+    };
+  });
+
+  return assertVideoScript({ title, language: 'vi', scenes });
+}
+
+function canCallConfiguredLlm(): boolean {
+  const def = getProviderDef(getProvider());
+  if (def.keyOptional) return true;
+  const key = getApiKeySafe();
+  return Boolean(key && !key.includes('•') && !key.includes('...'));
+}
+
+/**
+ * Ưu tiên kịch bản local khi chưa có API key.
+ * Có key thì thử LLM, lỗi thì vẫn xuất bằng storyboard local.
+ */
+export async function resolveVideoScript(
+  userPrompt: string,
+  contentType: ContentType
+): Promise<VideoScript> {
+  const local = buildLocalVideoScript(userPrompt, contentType);
+  if (!canCallConfiguredLlm()) {
+    return local;
+  }
+  try {
+    return await generateVideoScript(userPrompt, contentType);
+  } catch {
+    return local;
+  }
+}
+
 /**
  * Ask the configured LLM for a strict JSON storyboard (scenes[]).
  */
@@ -482,9 +672,9 @@ export async function generateVideoScript(
 
   const system = buildSystemPrompt(contentType);
   const user = [
-    `User brief:\n${userPrompt.trim()}`,
+    `Yêu cầu của người dùng:\n${userPrompt.trim()}`,
     '',
-    'Return ONLY the JSON object now.',
+    'Chỉ trả về một object JSON. Mọi câu chữ trong JSON phải là tiếng Việt.',
   ].join('\n');
 
   let rawText = '';
@@ -499,11 +689,11 @@ export async function generateVideoScript(
     providerLabel = result.providerLabel;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`${providerLabel} API request failed: ${message}`);
+    throw new Error(`${providerLabel} không gọi được API: ${message}`);
   }
 
   if (!rawText?.trim()) {
-    throw new Error(`${providerLabel} returned an empty response.`);
+    throw new Error(`${providerLabel} không trả về nội dung.`);
   }
 
   try {
@@ -514,9 +704,9 @@ export async function generateVideoScript(
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(
       [
-        `Failed to parse ${providerLabel} JSON storyboard.`,
+        `Không đọc được bảng cảnh JSON từ ${providerLabel}.`,
         message,
-        `Raw (truncated): ${rawText.slice(0, 500)}`,
+        `Nội dung gốc (rút gọn): ${rawText.slice(0, 500)}`,
       ].join('\n')
     );
   }
@@ -524,6 +714,8 @@ export async function generateVideoScript(
 
 export const llmService = {
   generateVideoScript,
+  resolveVideoScript,
+  buildLocalVideoScript,
   extractJsonPayload,
   testLlmConnection,
 };

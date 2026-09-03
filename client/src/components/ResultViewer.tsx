@@ -35,18 +35,18 @@ const PHASE_COPY: Record<
   { label: string; detail: string; icon: typeof Sparkles }
 > = {
   script: {
-    label: 'AI is writing script',
-    detail: 'Gemini is structuring scenes, motion, and voiceover copy…',
+    label: 'Đang dựng kịch bản',
+    detail: 'Đang tách cảnh, hiệu ứng và lời đọc tiếng Việt…',
     icon: Wand2,
   },
   voice: {
-    label: 'Recording voice',
-    detail: 'Edge-TTS is generating Vietnamese neural voiceovers…',
+    label: 'Đang tạo giọng đọc',
+    detail: 'Đang ghi lời đọc tiếng Việt…',
     icon: Mic,
   },
   render: {
-    label: 'Rendering + upload',
-    detail: 'nexu-io render → Google Drive publish…',
+    label: 'Đang dựng và xuất',
+    detail: 'Đang render trên máy — Drive chỉ khi bạn chọn.',
     icon: Clapperboard,
   },
 }
@@ -101,9 +101,9 @@ export function ResultViewer({
     >
       <header className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-100">Preview</h2>
+          <h2 className="text-sm font-semibold text-zinc-100">Xem trước</h2>
           <p className="text-xs text-zinc-500">
-            {uploadedToDrive ? 'Published to Google Drive' : 'Local / Drive output'}
+            {uploadedToDrive ? 'Đã đưa lên Google Drive' : 'Kết quả trên máy này'}
           </p>
         </div>
         {assetUrl && (
@@ -113,7 +113,7 @@ export function ResultViewer({
             rel="noreferrer"
             className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-400 transition-colors hover:text-blue-300"
           >
-            Open <ExternalLink className="size-3" aria-hidden />
+            Mở <ExternalLink className="size-3" aria-hidden />
           </a>
         )}
       </header>
@@ -134,7 +134,7 @@ export function ResultViewer({
           >
             <div className="flex items-center gap-2 text-red-300">
               <AlertCircle className="size-5 shrink-0" aria-hidden />
-              <p className="text-sm font-semibold">Generation failed</p>
+              <p className="text-sm font-semibold">Tạo nội dung thất bại</p>
             </div>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-red-200/90">
               {error}
@@ -148,8 +148,8 @@ export function ResultViewer({
               <CheckCircle2 className="size-5 shrink-0" aria-hidden />
               <p className="text-sm font-semibold">
                 {uploadedToDrive
-                  ? 'Uploaded to Google Drive'
-                  : 'Generation complete'}
+                  ? 'Đã tải lên Google Drive'
+                  : 'Đã tạo xong'}
               </p>
             </div>
             {successMessage && (
@@ -183,7 +183,7 @@ export function ResultViewer({
         {!loading && assetUrl && (kind === 'html' || kind === 'pdf') && (
           <iframe
             key={assetUrl}
-            title="Generated content preview"
+            title="Xem trước nội dung"
             src={assetUrl}
             className="min-h-[480px] w-full flex-1 rounded-xl bg-white ring-1 ring-zinc-800"
           />
@@ -193,8 +193,8 @@ export function ResultViewer({
           <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
             <FileText className="size-10 text-zinc-400" aria-hidden />
             <p className="max-w-sm text-sm text-zinc-300">
-              Your file is on Google Drive. Use the link above to view or share
-              it. Embedded Drive preview may require Google sign-in.
+              File đang trên Google Drive. Dùng liên kết phía trên để xem hoặc
+              chia sẻ. Xem trước nhúng có thể cần đăng nhập Google.
             </p>
             <a
               href={assetUrl}
@@ -202,7 +202,7 @@ export function ResultViewer({
               rel="noreferrer"
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500"
             >
-              Open in Google Drive
+              Mở trên Google Drive
               <ExternalLink className="size-4" aria-hidden />
             </a>
           </div>
@@ -212,13 +212,13 @@ export function ResultViewer({
           <div className="flex flex-col items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
             <FileText className="size-5 text-zinc-400" aria-hidden />
             <p className="text-sm text-zinc-300">
-              Preview unavailable for this file type.
+              Không xem trước được kiểu tệp này.
             </p>
             <a
               href={assetUrl}
               className="cursor-pointer text-sm font-medium text-blue-400 hover:text-blue-300"
             >
-              Download / open result
+              Tải / mở kết quả
             </a>
           </div>
         )}
@@ -233,10 +233,10 @@ function EmptyState() {
       <div className="flex size-14 items-center justify-center rounded-2xl bg-zinc-900 ring-1 ring-zinc-800">
         <Sparkles className="size-6 text-zinc-500" aria-hidden />
       </div>
-      <p className="text-sm font-medium text-zinc-300">No output yet</p>
+      <p className="text-sm font-medium text-zinc-300">Chưa có kết quả</p>
       <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
-        Choose a template and brand, then generate. Results appear here — and on
-        Drive when credentials are set.
+        Chọn mẫu và thương hiệu, rồi tạo nội dung. Kết quả hiện ở đây — Drive
+        chỉ khi bạn bật trong Cài đặt.
       </p>
     </div>
   )
@@ -265,10 +265,10 @@ function LoadingState({ phase }: { phase: PipelinePhase }) {
         <div>
           <p className="flex items-center gap-2 text-sm font-medium text-zinc-100">
             <Icon className="size-3.5 text-blue-400" aria-hidden />
-            Crafting your content…
+            Đang soạn nội dung…
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            {meta.label} → next stages queue automatically
+            {meta.label} → các bước sau chạy tự động
           </p>
           <p className="mt-1 text-xs text-zinc-500">{meta.detail}</p>
         </div>

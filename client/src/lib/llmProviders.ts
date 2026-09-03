@@ -61,7 +61,7 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
     keyHelpUrl: 'https://aistudio.google.com/apikey',
     keyHelpLabel: 'Google AI Studio (Antigravity)',
     needsBaseUrl: true,
-    hint: 'Endpoint OpenAI-compatible của Google. Có thể đổi Base URL.',
+    hint: 'Cổng tương thích OpenAI của Google. Có thể đổi địa chỉ máy chủ.',
   },
   {
     id: 'openai',
@@ -197,11 +197,11 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
       'https://portal.azure.com/#view/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/~/OpenAI',
     keyHelpLabel: 'Azure Portal',
     needsBaseUrl: true,
-    hint: 'Điền Base URL deployment Azure của bạn.',
+    hint: 'Điền địa chỉ máy chủ Azure của bạn.',
   },
   {
     id: 'ollama',
-    label: 'Ollama (local)',
+    label: 'Ollama (trên máy)',
     apiStyle: 'openai',
     defaultBaseUrl: 'http://127.0.0.1:11434/v1',
     models: ['llama3.2', 'qwen2.5', 'mistral', 'gemma2'],
@@ -209,11 +209,11 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
     keyHelpLabel: 'Ollama docs',
     needsBaseUrl: true,
     keyOptional: true,
-    hint: 'Local — API key có thể để trống.',
+    hint: 'Chạy trên máy — khóa API có thể để trống.',
   },
   {
     id: 'lmstudio',
-    label: 'LM Studio (local)',
+    label: 'LM Studio (trên máy)',
     apiStyle: 'openai',
     defaultBaseUrl: 'http://127.0.0.1:1234/v1',
     models: ['local-model'],
@@ -224,14 +224,14 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
   },
   {
     id: 'custom',
-    label: 'Custom (OpenAI-compatible)',
+    label: 'Tùy chỉnh (tương thích OpenAI)',
     apiStyle: 'openai',
     defaultBaseUrl: '',
     models: ['gpt-4o-mini', 'custom-model'],
     keyHelpUrl: 'https://platform.openai.com/docs/api-reference',
     keyHelpLabel: 'OpenAI-compatible docs',
     needsBaseUrl: true,
-    hint: 'Mọi gateway tương thích /v1/chat/completions.',
+    hint: 'Mọi cổng tương thích /v1/chat/completions.',
   },
 ]
 

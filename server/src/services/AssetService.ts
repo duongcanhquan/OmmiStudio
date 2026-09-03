@@ -110,16 +110,16 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
   },
   {
     id: 'deck-orientation-sinh-vien',
-    name: 'Orientation Sinh viên Mới',
+    name: 'Định hướng sinh viên mới',
     type: 'deck',
-    description: 'Deck giới thiệu trường / khoa cho tân sinh viên',
+    description: 'Bài giới thiệu trường / khoa cho tân sinh viên',
     mode: 'deck',
     path: '(fallback)',
     thumbnail: null,
   },
   {
     id: 'deck-pitch-startup',
-    name: 'Pitch Deck Startup',
+    name: 'Thuyết trình gọi vốn khởi nghiệp',
     type: 'deck',
     description: 'Thuyết trình gọi vốn / giới thiệu sản phẩm',
     mode: 'deck',
@@ -139,7 +139,7 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'poster-tuyen-sinh',
     name: 'Poster Tuyển sinh',
     type: 'poster',
-    description: 'Ấn phẩm tuyển sinh / open day',
+    description: 'Ấn phẩm tuyển sinh / ngày hội mở cửa',
     mode: 'frame',
     path: '(fallback)',
     thumbnail: null,
@@ -148,32 +148,32 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'video-gioi-thieu-truong',
     name: 'Video Giới thiệu Trường',
     type: 'video',
-    description: 'Video brand story có voiceover tiếng Việt',
+    description: 'Phim chữ động + lời đọc — không quay camera',
     mode: 'video',
     path: '(fallback)',
     thumbnail: null,
   },
   {
     id: 'video-reels-social',
-    name: 'Video Reels / Short',
+    name: 'Video ngắn dọc',
     type: 'video',
-    description: 'Storyboard dọc cho TikTok, Reels, Shorts',
+    description: 'Video chữ dọc (mạng xã hội) — chữ trên màn + lời đọc',
     mode: 'video',
     path: '(fallback)',
     thumbnail: null,
   },
   {
     id: 'social-instagram-carousel',
-    name: 'Carousel Instagram',
+    name: 'Băng chuyền Instagram',
     type: 'social',
-    description: 'Bộ slide vuông cho bài đăng carousel',
+    description: 'Bộ ảnh vuông nhiều trang cho bài đăng',
     mode: 'social',
     path: '(fallback)',
     thumbnail: null,
   },
   {
     id: 'social-facebook-cover',
-    name: 'Facebook Cover & Post',
+    name: 'Ảnh bìa và bài Facebook',
     type: 'social',
     description: 'Ảnh bìa và bài đăng quảng bá',
     mode: 'social',
@@ -184,14 +184,14 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'document-bao-cao',
     name: 'Báo cáo / Memo',
     type: 'document',
-    description: 'Tài liệu dài dạng chương / section',
+    description: 'Tài liệu dài dạng chương / mục',
     mode: 'doc',
     path: '(fallback)',
     thumbnail: null,
   },
   {
     id: 'landing-san-pham',
-    name: 'Landing Page Sản phẩm',
+    name: 'Trang đích sản phẩm',
     type: 'landing',
     description: 'Trang đích giới thiệu khóa học / dịch vụ',
     mode: 'prototype',
@@ -202,7 +202,7 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'newsletter-email',
     name: 'Bản tin Email',
     type: 'newsletter',
-    description: 'Newsletter HTML cho phụ huynh / học viên',
+    description: 'Bản tin HTML cho phụ huynh / học viên',
     mode: 'newsletter',
     path: '(fallback)',
     thumbnail: null,
@@ -211,7 +211,7 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'infographic-thong-ke',
     name: 'Infographic Thống kê',
     type: 'infographic',
-    description: 'Sơ đồ số liệu, timeline, quy trình',
+    description: 'Sơ đồ số liệu, dòng thời gian, quy trình',
     mode: 'infographic',
     path: '(fallback)',
     thumbnail: null,
@@ -247,7 +247,7 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'event-thu-moi',
     name: 'Thiệp mời Sự kiện',
     type: 'event',
-    description: 'Lễ tốt nghiệp, hội thảo, workshop',
+    description: 'Lễ tốt nghiệp, hội thảo, lớp tập huấn',
     mode: 'event',
     path: '(fallback)',
     thumbnail: null,
@@ -256,7 +256,7 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
     id: 'worksheet-phieu-hoc-tap',
     name: 'Phiếu Bài tập',
     type: 'worksheet',
-    description: 'Worksheet in-class cho học sinh',
+    description: 'Phiếu bài tập trên lớp cho học sinh',
     mode: 'worksheet',
     path: '(fallback)',
     thumbnail: null,
@@ -272,9 +272,9 @@ const FALLBACK_TEMPLATES: TemplateMeta[] = [
   },
   {
     id: 'deck-swiss-international',
-    name: 'Swiss International (EN)',
+    name: 'Thuyết trình phong cách Thụy Sĩ',
     type: 'deck',
-    description: 'Mẫu quốc tế tối giản — từ html-anything',
+    description: 'Mẫu tối giản, lưới rõ — phù hợp thuyết trình chuyên nghiệp',
     mode: 'deck',
     path: '(fallback)',
     thumbnail: null,
@@ -292,7 +292,7 @@ const FALLBACK_BRANDS: BrandMeta[] = [
   {
     id: 'tram-thanh-xuan',
     name: 'Trạm Thanh Xuân',
-    description: 'Thương hiệu địa phương / hospitality',
+    description: 'Thương hiệu địa phương / nhà hàng khách sạn',
     accent: '#f59e0b',
     path: '(fallback)',
   },
@@ -316,10 +316,10 @@ const BUILTIN_MOTIONS: MotionRecipe[] = [
   },
   {
     id: 'glitch',
-    name: 'Glitch',
+    name: 'Nhiễu số',
     category: 'kinetic-text',
     categoryLabel: 'Chữ động',
-    description: 'Hiệu ứng nhiễu số — tiêu đề nổi bật',
+    description: 'Hiệu ứng nhiễu — tiêu đề nổi bật',
     motionType: 'glitch',
   },
   {
@@ -327,7 +327,7 @@ const BUILTIN_MOTIONS: MotionRecipe[] = [
     name: 'Mờ dần vào',
     category: 'entrances',
     categoryLabel: 'Xuất hiện',
-    description: 'Fade in nhẹ nhàng',
+    description: 'Hiện dần nhẹ nhàng',
     motionType: 'fade-in',
   },
   {
@@ -343,15 +343,15 @@ const BUILTIN_MOTIONS: MotionRecipe[] = [
     name: 'Phóng to',
     category: 'entrances',
     categoryLabel: 'Xuất hiện',
-    description: 'Scale vào tiêu điểm',
+    description: 'Phóng to vào tiêu điểm',
     motionType: 'zoom-in',
   },
   {
     id: 'ken-burns',
-    name: 'Ken Burns',
+    name: 'Quay chậm điện ảnh',
     category: 'backgrounds',
     categoryLabel: 'Nền / Cảnh',
-    description: 'Pan/zoom điện ảnh chậm',
+    description: 'Trượt và phóng nền chậm như phim tài liệu',
     motionType: 'ken-burns',
   },
   {
@@ -359,7 +359,7 @@ const BUILTIN_MOTIONS: MotionRecipe[] = [
     name: 'Parallax trôi',
     category: 'backgrounds',
     categoryLabel: 'Nền / Cảnh',
-    description: 'Lớp nền trôi sâu (alias ken-burns)',
+    description: 'Lớp nền trôi sâu (kiểu phóng chậm)',
     motionType: 'ken-burns',
   },
   {
@@ -367,7 +367,7 @@ const BUILTIN_MOTIONS: MotionRecipe[] = [
     name: 'Chuyển mờ',
     category: 'transitions',
     categoryLabel: 'Chuyển cảnh',
-    description: 'Blend giữa các slide/scene',
+    description: 'Hòa lẫn giữa các slide / cảnh',
     motionType: 'fade-in',
   },
 ];
@@ -424,6 +424,68 @@ function parseFrontmatter(markdown: string): Record<string, string> {
 
 function humanizeId(id: string): string {
   return id.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const TYPE_VI: Record<TemplateType, string> = {
+  deck: 'Thuyết trình',
+  poster: 'Poster',
+  video: 'Video chữ động',
+  social: 'Mạng xã hội',
+  document: 'Tài liệu',
+  landing: 'Trang đích',
+  newsletter: 'Bản tin',
+  infographic: 'Sơ đồ số liệu',
+  certificate: 'Chứng chỉ',
+  resume: 'CV / Hồ sơ',
+  brochure: 'Tờ rơi',
+  event: 'Sự kiện',
+  worksheet: 'Phiếu bài tập',
+  quiz: 'Câu hỏi',
+};
+
+const FOREIGN_SCRIPT = /[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u30ff\uac00-\ud7af]/;
+const VIET_MARK = /[àáạảãâăèéêìíòóôơùúưỳýđÀÁẠẢÃĂÂÈÉÊÌÍÒÓÔƠÙÚƯỲÝĐ]/;
+
+function localizeScannedCopy(raw: string | undefined, fallback: string): string {
+  const text = (raw || '').trim();
+  if (!text) return fallback;
+  if (FOREIGN_SCRIPT.test(text)) return fallback;
+  if (VIET_MARK.test(text)) return text;
+  if (/[A-Za-z]{5,}/.test(text)) return fallback;
+  return text;
+}
+
+function localizeTemplateName(
+  id: string,
+  rawName: string,
+  type: TemplateType
+): string {
+  const name = (rawName || '').trim();
+  if (FOREIGN_SCRIPT.test(name)) {
+    return TYPE_VI[type];
+  }
+  if (name && VIET_MARK.test(name)) return name;
+  const mapped: Record<string, string> = {
+    'swiss international': 'Thuyết trình phong cách Thụy Sĩ',
+    'swiss-international': 'Thuyết trình phong cách Thụy Sĩ',
+    orientation: 'Định hướng sinh viên',
+    magazine: 'Tạp chí',
+    resume: 'CV / Hồ sơ',
+    tweet: 'Thẻ bài đăng',
+    xhs: 'Thẻ mạng xã hội',
+    prototype: 'Nguyên mẫu trang web',
+    hyperframes: 'Khung hình video',
+    newsletter: 'Bản tin',
+    worksheet: 'Phiếu bài tập',
+    brochure: 'Tờ rơi',
+    infographic: 'Sơ đồ số liệu',
+  };
+  const key = (id || name).toLowerCase();
+  for (const [en, vi] of Object.entries(mapped)) {
+    if (key.includes(en) || name.toLowerCase().includes(en)) return vi;
+  }
+  if (name && !/[A-Za-z]{5,}/.test(name)) return name;
+  return TYPE_VI[type];
 }
 
 async function readOptionalText(filePath: string): Promise<string | null> {
@@ -510,25 +572,30 @@ export async function getAvailableTemplates(): Promise<TemplateMeta[]> {
 
     const fm = skillMd ? parseFrontmatter(skillMd) : {};
     const id = fm.name || entry.name;
-    const name = fm.title || humanizeId(id);
+    const rawName = fm.title || humanizeId(id);
     const description = fm.description;
     const mode = fm.mode;
     const scenario = fm.scenario;
     const surface = fm.surface;
     const type = inferTemplateType({
       id,
-      name,
+      name: rawName,
       mode,
       scenario,
       surface,
       description,
     });
+    const name = localizeTemplateName(id, rawName, type);
+    const localizedDescription = localizeScannedCopy(
+      description,
+      TYPE_VI[type]
+    );
 
     templates.push({
       id,
       name,
       type,
-      description,
+      description: localizedDescription,
       mode,
       scenario,
       surface,
@@ -599,8 +666,11 @@ export async function getAvailableBrands(): Promise<BrandMeta[]> {
 
     brands.push({
       id: entry.name,
-      name,
-      description,
+      name: localizeScannedCopy(name, 'Thương hiệu'),
+      description: localizeScannedCopy(
+        description,
+        'Bộ nhận diện từ thư mục thiết kế'
+      ),
       accent: BRAND_ACCENTS[accentIndex % BRAND_ACCENTS.length],
       path: folder,
     });
@@ -641,10 +711,10 @@ export async function getAvailableMotions(): Promise<MotionRecipe[]> {
         const category = inferMotionCategory(id, id);
         byId.set(id, {
           id,
-          name: humanizeId(id),
+          name: localizeScannedCopy(humanizeId(id), CATEGORY_LABELS[category]),
           category,
           categoryLabel: CATEGORY_LABELS[category],
-          description: `Discovered in motion-anything/${path.basename(root)}`,
+          description: `Tìm thấy trong bộ hiệu ứng chuyển động (${path.basename(root)})`,
           motionType: id,
         });
       }

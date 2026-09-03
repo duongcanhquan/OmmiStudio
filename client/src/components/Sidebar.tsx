@@ -24,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'create',
     label: 'Studio',
-    hint: 'Mẫu → brand → nội dung AI',
+    hint: 'Mẫu → thương hiệu → nội dung',
     icon: PlusCircle,
   },
   {
@@ -42,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'settings',
     label: 'Cài đặt',
-    hint: 'AI Provider, Drive, giọng',
+    hint: 'Nhà cung cấp AI, Drive, giọng',
     icon: Settings,
   },
 ]
@@ -119,7 +119,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
               OmniStudio
             </p>
             <p className="truncate text-[10px] uppercase tracking-[0.14em] text-slate-500">
-              Full studio
+              Studio nội dung
             </p>
           </div>
         </div>

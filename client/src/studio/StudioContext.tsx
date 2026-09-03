@@ -7,7 +7,10 @@ import type {
   VoiceRegion,
 } from '../api/engine'
 import type { StudioBrand } from '../lib/brands'
-import type { TemplateFilter } from '../lib/templateTypes'
+import {
+  hasUserAuthoredContent,
+  type TemplateFilter,
+} from '../lib/templateTypes'
 
 export type StudioStep = 1 | 2 | 3 | 4
 
@@ -38,19 +41,15 @@ export interface StudioSelection {
   contentType: ContentType
 }
 
-/** Có nội dung đủ để gửi pipeline (không phụ thuộc prompt cache). */
+/** Có nội dung người viết — bỏ qua thông số mẫu đã điền sẵn. */
 export function selectionHasContent(selection: StudioSelection): boolean {
-  if (selection.prompt.trim()) return true
-  if (selection.aiBrief.trim()) return true
-  if (selection.scriptNotes.trim()) return true
-  if (Object.values(selection.fieldValues).some((v) => Boolean(v?.trim()))) {
-    return true
-  }
-  const plain = selection.richHtml
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim()
-  return Boolean(plain)
+  return hasUserAuthoredContent(selection.selectedTemplate?.type, {
+    prompt: selection.prompt,
+    aiBrief: selection.aiBrief,
+    scriptNotes: selection.scriptNotes,
+    richHtml: selection.richHtml,
+    fieldValues: selection.fieldValues,
+  })
 }
 
 export interface StudioResult {

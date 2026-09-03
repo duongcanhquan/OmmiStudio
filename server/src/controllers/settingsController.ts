@@ -19,7 +19,7 @@ export async function getSettings(_req: Request, res: Response): Promise<void> {
       settings: configManager.toPublic(settings),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -65,7 +65,7 @@ export async function updateSettings(
       message: 'Đã lưu cài đặt thành công.',
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -92,7 +92,7 @@ export async function testLlm(req: Request, res: Response): Promise<void> {
       message: result.message,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }
@@ -115,7 +115,7 @@ export async function testDrive(req: Request, res: Response): Promise<void> {
       message: result.message,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });
   }
 }

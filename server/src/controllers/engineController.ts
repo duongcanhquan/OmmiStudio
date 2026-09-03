@@ -46,7 +46,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     res.status(400).json({
       success: false,
-      error: 'Missing or invalid "prompt" (non-empty string required).',
+      error: 'Thiếu nội dung kịch bản (prompt không được trống).',
     });
     return;
   }
@@ -54,7 +54,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
   if (!type || !CONTENT_TYPES.includes(type)) {
     res.status(400).json({
       success: false,
-      error: `Invalid "type". Expected one of: ${CONTENT_TYPES.join(', ')}.`,
+      error: `Loại nội dung không hợp lệ. Chọn một trong: ${CONTENT_TYPES.join(', ')}.`,
     });
     return;
   }
@@ -62,7 +62,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
   if (!VOICE_REGIONS.includes(voiceRegion as VietnameseVoiceRegion)) {
     res.status(400).json({
       success: false,
-      error: `Invalid "voiceRegion". Expected one of: ${VOICE_REGIONS.join(', ')}.`,
+      error: `Vùng giọng không hợp lệ. Chọn một trong: ${VOICE_REGIONS.join(', ')}.`,
     });
     return;
   }
@@ -102,13 +102,11 @@ export async function generate(req: Request, res: Response): Promise<void> {
       cliLogs: result.cliLogs,
       degraded: result.degraded,
       message: result.uploadedToDrive
-        ? 'Đã xuất lên Google Drive. Có thể mở link Drive bên dưới.'
-        : result.degraded
-          ? 'Hoàn tất (chế độ HTML xem trước). Tải file về máy hoặc mở trong trình duyệt.'
-          : 'Hoàn tất. Tải file về máy (Desktop) bằng nút bên dưới.',
+        ? 'File hoàn chỉnh đã lên Google Drive.'
+        : 'File hoàn chỉnh đã sẵn sàng — tải về máy.'
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     console.error('[generate]', message);
     res.status(500).json({
       success: false,
@@ -136,7 +134,7 @@ export async function generatePreview(
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
     res.status(400).json({
       success: false,
-      error: 'Missing or invalid "prompt" (non-empty string required).',
+      error: 'Thiếu nội dung kịch bản (prompt không được trống).',
     });
     return;
   }
@@ -166,10 +164,10 @@ export async function generatePreview(
       templateId: result.templateId,
       brandId: result.brandId,
       motionId: result.preferredMotion ?? null,
-      message: 'Preview HTML ready.',
+      message: 'Đã sẵn sàng xem trước HTML.',
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     console.error('[generate/preview]', message);
     res.status(500).json({
       success: false,
@@ -187,7 +185,7 @@ export async function renderHtml(req: Request, res: Response): Promise<void> {
   if (!content || typeof content !== 'string') {
     res.status(400).json({
       success: false,
-      error: 'Missing or invalid "content" (string required).',
+      error: 'Thiếu nội dung (content phải là chuỗi).',
     });
     return;
   }
@@ -195,7 +193,7 @@ export async function renderHtml(req: Request, res: Response): Promise<void> {
   if (!templateId || typeof templateId !== 'string') {
     res.status(400).json({
       success: false,
-      error: 'Missing or invalid "templateId" (string required).',
+      error: 'Thiếu mã mẫu (templateId phải là chuỗi).',
     });
     return;
   }
@@ -226,7 +224,7 @@ export async function renderHtml(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     console.error('[render-html]', message);
     res.status(500).json({
       success: false,

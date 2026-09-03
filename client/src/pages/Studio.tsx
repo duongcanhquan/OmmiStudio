@@ -18,7 +18,8 @@ import {
   type StudioBrand,
 } from '../lib/brands'
 import {
-  REQUIRED_FIELDS_BY_TYPE,
+  getMissingRequiredFields,
+  mergeFieldDefaults,
   buildStudioPrompt,
   type TemplateFilter,
 } from '../lib/templateTypes'
@@ -121,12 +122,27 @@ function resolvePrompt(selection: StudioSelection): string {
 }
 
 function fieldsComplete(selection: StudioSelection): boolean {
-  const type = selection.selectedTemplate?.type
-  if (!type) return false
-  const req = REQUIRED_FIELDS_BY_TYPE[type] ?? []
-  return req
-    .filter((f) => f.required)
-    .every((f) => Boolean((selection.fieldValues[f.key] ?? '').trim()))
+  return (
+    getMissingRequiredFields(selection.selectedTemplate?.type, selection.fieldValues, {
+      aiBrief: selection.aiBrief,
+      richHtml: selection.richHtml,
+      scriptNotes: selection.scriptNotes,
+    }).length === 0
+  )
+}
+
+function missingFieldLabel(selection: StudioSelection): string {
+  const missing = getMissingRequiredFields(
+    selection.selectedTemplate?.type,
+    selection.fieldValues,
+    {
+      aiBrief: selection.aiBrief,
+      richHtml: selection.richHtml,
+      scriptNotes: selection.scriptNotes,
+    }
+  )
+  if (!missing.length) return ''
+  return missing.map((field) => field.label).join(', ')
 }
 
 export function StudioPage({
@@ -223,17 +239,24 @@ export function StudioPage({
         setTemplates(tpl)
         setBrands(merged)
         setMotions(mo)
-        setSelection((prev) => ({
-          ...prev,
-          selectedTemplate: prev.selectedTemplate ?? tpl[0] ?? null,
-          selectedBrand: prev.selectedBrand ?? merged[0] ?? null,
-          selectedMotion: prev.selectedMotion,
-          contentType: prev.selectedTemplate
-            ? prev.contentType
-            : tpl[0]
-              ? templateTypeToContentType(tpl[0].type)
-              : 'slide',
-        }))
+        setSelection((prev) => {
+          const nextTemplate = prev.selectedTemplate ?? tpl[0] ?? null
+          const nextType = nextTemplate?.type
+          return {
+            ...prev,
+            selectedTemplate: nextTemplate,
+            selectedBrand: prev.selectedBrand ?? merged[0] ?? null,
+            selectedMotion: prev.selectedMotion,
+            contentType: prev.selectedTemplate
+              ? prev.contentType
+              : tpl[0]
+                ? templateTypeToContentType(tpl[0].type)
+                : 'slide',
+            fieldValues: nextType
+              ? mergeFieldDefaults(nextType, prev.fieldValues)
+              : prev.fieldValues,
+          }
+        })
       } catch (err) {
         if (cancelled) return
         setAssetsError(
@@ -286,11 +309,13 @@ export function StudioPage({
   const goNext = useCallback(() => {
     setStep((s) => {
       if (s === 3) {
-        // Cache prompt trước khi sang xuất bản — FinalExport / server đều dùng
         setSelection((prev) => ({
           ...prev,
           prompt: resolvePrompt(prev),
         }))
+        setResult(INITIAL_RESULT)
+        setError(null)
+        setRenderPhase('idle')
       }
       return s < 4 ? ((s + 1) as StudioStep) : s
     })
@@ -302,7 +327,13 @@ export function StudioPage({
 
   const runAiAssist = useCallback(async () => {
     if (!fieldsComplete(selection)) {
-      onNotify?.('Vui lòng điền đủ các trường bắt buộc trước.', true)
+      const labels = missingFieldLabel(selection)
+      onNotify?.(
+        labels
+          ? `Còn thiếu: ${labels}. Điền các ô này, hoặc viết brief / kịch bản.`
+          : 'Vui lòng điền nội dung trước.',
+        true
+      )
       return
     }
     setAiAssistLoading(true)
@@ -414,6 +445,7 @@ export function StudioPage({
       setRenderLoading(true)
       setError(null)
       setRenderPhase('script')
+      onNotify?.('Đang xử lý kịch bản — giữ tab này mở.')
       setSelection((prev) => ({ ...prev, prompt }))
       setResult((prev) => ({
         ...prev,
@@ -461,8 +493,8 @@ export function StudioPage({
         onNotify?.(
           response.message ||
             (response.uploadedToDrive
-              ? 'Đã xuất lên Google Drive.'
-              : 'Render xong — tải về máy của bạn.')
+              ? 'File hoàn chỉnh đã lên Google Drive.'
+              : 'File hoàn chỉnh đã sẵn sàng — đang tải về máy.')
         )
       } catch (err) {
         const message = extractErrorMessage(err)
@@ -556,10 +588,10 @@ export function StudioPage({
                   {step === 1 && '1. Chọn mẫu'}
                   {step === 2 && '2. Chọn thương hiệu'}
                   {step === 3 && '3. Kịch bản / nội dung'}
-                  {step === 4 && '4. Chạy & xuất bản'}
+                  {step === 4 && '4. Đang xử lý & tải file'}
                 </h1>
                 <p className="mt-1 hidden text-xs text-slate-500 sm:block">
-                  Mẫu → Brand → Kịch bản (tay hoặc AI) → Xuất máy / Drive
+                  Kịch bản chuẩn xong → hệ thống tự dựng file → tải về máy
                 </p>
               </div>
               <ol className="flex items-center gap-1.5" aria-label="Tiến trình">

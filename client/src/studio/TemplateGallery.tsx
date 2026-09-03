@@ -5,7 +5,9 @@ import type { TemplateMeta } from '../api/engine'
 import {
   TEMPLATE_CATEGORY_GROUPS,
   TEMPLATE_TYPE_ICONS,
+  TEMPLATE_FORMAT_NOTE,
   TEMPLATE_TYPE_LABELS,
+  defaultFieldValues,
   templateTypeToContentType,
   type TemplateFilter,
   type TemplateType,
@@ -65,7 +67,9 @@ export function TemplateGallery() {
             Chọn mẫu thiết kế
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Tìm theo tên hoặc lọc theo nhóm ngành — lưới icon gọn, dễ nhận biết.
+            {templateFilter === 'video' || templateFilter === 'social'
+              ? TEMPLATE_FORMAT_NOTE[templateFilter]
+              : 'Chọn mẫu. Video = phim chữ động (chữ + lời đọc), không phải clip quay.'}
           </p>
         </div>
         <div className="relative w-full max-w-sm">
@@ -148,7 +152,7 @@ export function TemplateGallery() {
                       patchSelection({
                         selectedTemplate: tpl,
                         contentType: templateTypeToContentType(tpl.type),
-                        fieldValues: {},
+                        fieldValues: defaultFieldValues(tpl.type),
                       })
                     }
                   />

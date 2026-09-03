@@ -98,9 +98,8 @@ html, body {
 }
 
 /**
- * Inject Google Fonts <link> tags + a global font-family rule into an HTML
- * document so html-anything output renders Vietnamese text without layout
- * breakage (no missing glyphs / tofu boxes).
+ * Inject a local font stack (no Google Fonts CDN) so preview/export
+ * stays offline. macOS / Windows system fonts cover Vietnamese diacritics.
  *
  * Idempotent: skips injection if OmniStudio markers are already present.
  */
@@ -116,13 +115,20 @@ export function injectVietnameseFonts(htmlString: string): string {
     return htmlString;
   }
 
-  const href = buildGoogleFontsHref();
-  const fontCss = buildFontFaceCss();
+  const localStack = [
+    '.AppleSystemUIFont',
+    'SF Pro Text',
+    'SF Pro Display',
+    'system-ui',
+    'Segoe UI',
+    'Roboto',
+    'Helvetica Neue',
+    'Arial',
+    'sans-serif',
+  ];
+  const fontCss = buildFontFaceCss(localStack);
 
   const headInjection = [
-    `<link rel="preconnect" href="https://fonts.googleapis.com" data-omnistudio-fonts="vi">`,
-    `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin data-omnistudio-fonts="vi">`,
-    `<link href="${href}" rel="stylesheet" data-omnistudio-fonts="vi">`,
     `<style data-omnistudio-fonts="vi">\n${fontCss}\n</style>`,
   ].join('\n');
 

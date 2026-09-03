@@ -10,7 +10,7 @@ export type BrandIndustry =
 export const BRAND_INDUSTRY_LABELS: Record<BrandIndustry, string> = {
   education: 'Giáo dục',
   commerce: 'Thương mại',
-  hospitality: 'Dịch vụ / Hospitality',
+  hospitality: 'Dịch vụ / nhà hàng khách sạn',
   tech: 'Công nghệ',
   healthcare: 'Y tế',
   nonprofit: 'Phi lợi nhuận',
@@ -74,14 +74,14 @@ export const DEFAULT_BRAND_PRESETS: StudioBrand[] = [
       tone: 'Thân thiện · truyền cảm hứng · rõ ràng',
       keywords: ['học tập', 'tương lai', 'đồng hành'],
       doSay: 'Cùng bạn kiến tạo tương lai',
-      dontSay: 'Giọng quá bán hàng / hype',
+      dontSay: 'Giọng quá bán hàng / phóng đại',
     },
     path: '(preset)',
   },
   {
     id: 'tram-thanh-xuan',
     name: 'Trạm Thanh Xuân',
-    description: 'Thương hiệu địa phương / hospitality ấm áp',
+    description: 'Thương hiệu địa phương / nhà hàng khách sạn ấm áp',
     industry: 'hospitality',
     accent: '#f59e0b',
     palette: {

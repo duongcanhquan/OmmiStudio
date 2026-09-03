@@ -9,6 +9,7 @@ import express, {
 import cors from 'cors';
 import { engineRouter, v1Router } from './routes/engine.routes';
 import { configManager } from './config/ConfigManager';
+import { probeLocalRuntime } from './services/LocalRuntime';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -49,6 +50,7 @@ async function bootstrap() {
       driveEnabled: settings.drive.enabled,
       workspacesRoot,
       settingsPath: configManager.getSettingsPath(),
+      local: probeLocalRuntime(),
     });
   });
 

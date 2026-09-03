@@ -29,8 +29,8 @@ type FilterKind = 'all' | ProjectKind
 type FilterType = 'all' | ContentType
 
 const TYPE_LABEL: Record<ContentType, string> = {
-  video: 'Video',
-  slide: 'Slide',
+  video: 'Video chữ động',
+  slide: 'Thuyết trình',
   poster: 'Poster',
 }
 
@@ -171,7 +171,7 @@ export function ProjectsPage({ onNotify, onCreateNew }: ProjectsPageProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm theo tiêu đề, prompt, brand…"
+              placeholder="Tìm theo tiêu đề, kịch bản, thương hiệu…"
               className="min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900/80 py-2 pl-10 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
             />
           </div>
@@ -232,7 +232,7 @@ export function ProjectsPage({ onNotify, onCreateNew }: ProjectsPageProps) {
                               : 'bg-amber-500/15 text-amber-200'
                           )}
                         >
-                          {p.kind === 'final' ? 'Final' : 'Preview'}
+                          {p.kind === 'final' ? 'Bản chính' : 'Xem trước'}
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
@@ -266,7 +266,7 @@ export function ProjectsPage({ onNotify, onCreateNew }: ProjectsPageProps) {
                       {selected.templateId
                         ? `Mẫu: ${selected.templateId}`
                         : 'Không gắn mẫu'}
-                      {selected.brandId ? ` · Brand: ${selected.brandId}` : ''}
+                      {selected.brandId ? ` · Thương hiệu: ${selected.brandId}` : ''}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

@@ -321,11 +321,13 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
             <section className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
               <header>
                 <h2 className="text-lg font-semibold text-zinc-50">
-                  AI Provider (LLM)
+                  Nhà cung cấp AI (tùy chọn)
                 </h2>
                 <p className="mt-1 text-sm text-zinc-400">
-                  DeepSeek, OpenAI, Gemini, Antigravity, Claude, Groq, Ollama…
-                  — chọn nhà cung cấp và dán API Key.
+                  Không bắt buộc nếu bạn đã tự viết kịch bản — xuất bản trên máy
+                  (HTML / lời đọc / MP4). Khóa API chỉ cần khi muốn AI viết hoặc
+                  chỉnh kịch bản (Gemini, OpenAI, DeepSeek…). Ollama / LM Studio
+                  là mô hình trên máy, không cần khóa đám mây.
                 </p>
               </header>
 
@@ -353,7 +355,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-200">
-                  API Key
+                  Khóa API
                   {providerDef.keyOptional && (
                     <span className="ml-1 font-normal text-zinc-500">
                       (tuỳ chọn)
@@ -367,14 +369,14 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                     meta.apiKeySet
                       ? 'Đã lưu — nhập key mới nếu muốn đổi'
                       : providerDef.keyOptional
-                        ? 'Có thể để trống (local)'
-                        : 'Dán API Key vào đây'
+                        ? 'Có thể để trống (chạy trên máy)'
+                        : 'Dán khóa API vào đây'
                   }
                   className={fieldClass}
                   {...register('llm.apiKey')}
                 />
                 <p className="text-xs leading-relaxed text-zinc-500">
-                  Nhận API Key tại{' '}
+                  Nhận khóa API tại{' '}
                   <a
                     href={providerDef.keyHelpUrl}
                     target="_blank"
@@ -397,7 +399,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
               {showBaseUrl && (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-zinc-200">
-                    Base URL
+                    Địa chỉ máy chủ
                     {!providerDef.needsBaseUrl && (
                       <span className="ml-1 font-normal text-zinc-500">
                         (tuỳ chọn)
@@ -413,16 +415,16 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                     {...register('llm.baseUrl')}
                   />
                   <p className="text-xs text-zinc-500">
-                    Endpoint gốc (không kèm{' '}
+                    Địa chỉ gốc (không kèm{' '}
                     <code className="text-zinc-400">/chat/completions</code>
-                    ). Đổi khi dùng proxy, Azure, Ollama hoặc gateway riêng.
+                    ). Đổi khi dùng máy chủ trung gian, Azure, Ollama hoặc cổng riêng.
                   </p>
                 </div>
               )}
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-200">
-                  Model
+                  Mô hình
                 </label>
                 <select className={fieldClass} {...register('llm.model')}>
                   {modelOptions.map((m) => (
@@ -476,10 +478,10 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
               <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
                 <span>
                   <span className="block text-sm font-medium text-zinc-100">
-                    Bật Auto-Upload lên Google Drive
+                    Tự động tải lên Google Drive
                   </span>
                   <span className="block text-xs text-zinc-500">
-                    Sau khi tạo xong, đăng tải file và xóa bản local
+                    Sau khi tạo xong, đăng tải tệp và xóa bản trên máy
                   </span>
                 </span>
                 <input
@@ -497,7 +499,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
               >
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-zinc-200">
-                    Service Account JSON
+                    Tài khoản dịch vụ (JSON)
                   </label>
                   <textarea
                     rows={10}
@@ -514,14 +516,14 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                     {...register('drive.serviceAccountJson')}
                   />
                   <p className="text-xs text-zinc-500">
-                    Tạo Service Account trong Google Cloud → Keys → JSON, rồi
-                    dán toàn bộ nội dung file vào đây.
+                    Tạo tài khoản dịch vụ trong Google Cloud → Khóa → JSON, rồi
+                    dán toàn bộ nội dung tệp vào đây.
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-zinc-200">
-                    Google Drive Folder ID
+                    Mã thư mục Google Drive
                   </label>
                   <input
                     className={fieldClass}
@@ -532,11 +534,11 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                     Mở thư mục Drive trên trình duyệt. URL dạng{' '}
                     <code className="text-zinc-400">
                       drive.google.com/drive/folders/
-                      <span className="text-blue-300">FOLDER_ID</span>
+                      <span className="text-blue-300">MÃ_THƯ_MỤC</span>
                     </code>
-                    — copy phần sau{' '}
+                    — sao chép phần sau{' '}
                     <code className="text-zinc-400">/folders/</code>. Chia sẻ
-                    thư mục đó cho email Service Account (quyền Editor).
+                    thư mục đó cho email tài khoản dịch vụ (quyền Người chỉnh sửa).
                   </p>
                 </div>
 
@@ -569,7 +571,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                   Tùy chọn hệ thống
                 </h2>
                 <p className="mt-1 text-sm text-zinc-400">
-                  Giọng đọc tiếng Việt mặc định cho voiceover.
+                  Giọng đọc tiếng Việt mặc định cho lời thuyết minh.
                 </p>
               </header>
 
@@ -585,7 +587,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                   <option value="south">Miền Nam — Hoài My</option>
                 </select>
                 <p className="text-xs text-zinc-500">
-                  Có thể ghi đè khi tạo nội dung trong wizard.
+                  Có thể ghi đè khi tạo nội dung trong studio.
                 </p>
               </div>
             </section>
