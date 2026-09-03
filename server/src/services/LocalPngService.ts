@@ -33,14 +33,15 @@ export function parseSocialSize(fields: Record<string, string>): {
   w: number;
   h: number;
 } {
-  const size = fields.size || '';
-  const pixels = size.match(/^(\d+)x(\d+)$/i);
-  if (pixels) return { w: Number(pixels[1]), h: Number(pixels[2]) };
-  const aspect = fields.aspect || '1:1';
+  const aspect = fields.aspect || '';
   if (aspect === '9:16') return { w: 1080, h: 1920 };
   if (aspect === '16:9') return { w: 1920, h: 1080 };
   if (aspect === '3:4') return { w: 1080, h: 1440 };
   if (aspect === '4:5') return { w: 1080, h: 1350 };
+  if (aspect === '1:1') return { w: 1080, h: 1080 };
+  const size = fields.size || '';
+  const pixels = size.match(/^(\d+)x(\d+)$/i);
+  if (pixels) return { w: Number(pixels[1]), h: Number(pixels[2]) };
   return { w: 1080, h: 1080 };
 }
 

@@ -82,22 +82,24 @@ function buildSystemPrompt(contentType: ContentType): string {
         ? 'poster'
         : 'slide thuyết trình';
   return [
-    'Bạn là biên tập nội dung LYON Studio — chỉ viết tiếng Việt có dấu.',
+    'Bạn là giám đốc nghệ thuật kiêm biên tập LYON Studio — chỉ viết tiếng Việt có dấu.',
     `Loại sản phẩm: ${typeLabel}.`,
-    'Tạo bảng cảnh sẵn sàng dựng HTML / chuyển động / video trên máy này.',
+    'Viết chữ để đưa vào thiết kế (HTML / poster / video kinetic) — không kể chuyện hậu trường.',
     '',
     'QUY TẮC BẮT BUỘC:',
     '1. Chỉ trả về JSON hợp lệ. Không markdown, không giải thích, không tiếng Anh, không tiếng Trung.',
     '2. JSON đúng schema:',
     SCENE_SCHEMA_DESCRIPTION,
     '3. language phải là "vi".',
-    '4. visualText: chữ hiện trên màn hình — tiếng Việt ngắn, một khung hình.',
-    '5. voiceoverText: lời đọc tiếng Việt tự nhiên. Poster/slide có thể để "".',
+    '4. visualText: tiêu đề trên khung hình — 3–8 từ, mạnh, đúng một ý. Không câu dài, không dấu ngoặc chỉ dẫn.',
+    '5. voiceoverText: lời đọc tự nhiên, đúng sự thật trong brief. Poster/slide có thể để "".',
     '6. motionType: một trong typewriter | fade-in | glitch | slide-up | zoom-in | ken-burns.',
     '7. duration: số giây > 0. Tổng thời lượng các cảnh khớp brief nếu có.',
     '8. scenes: theo số cảnh/block người dùng yêu cầu (3–60). sceneId bắt đầu từ 1.',
-    '9. Video dài (>10 phút): chia chương/block; visualText ngắn; voiceoverText được dài hơn.',
-    '10. Luôn dùng tiếng Việt có dấu; không để tofu / mất dấu.',
+    '9. Không bịa số liệu, ngày, tên người. Thiếu thì viết định tính, không bịa con số.',
+    '10. Mỗi cảnh một thông điệp. Hook ngắn → thân → CTA rõ.',
+    '11. Video dài (>10 phút): chia chương; visualText vẫn ngắn; voiceoverText được dài hơn.',
+    '12. Luôn dùng tiếng Việt có dấu; không tofu / mất dấu.',
   ].join('\n');
 }
 
@@ -658,7 +660,7 @@ export function buildLocalVideoScript(
       ? Math.max(
           3,
           Math.min(
-            30,
+            90,
             Math.round((Number.isFinite(totalSec) && totalSec > 0 ? totalSec : parts.length * 8) / parts.length)
           )
         )
@@ -672,7 +674,7 @@ export function buildLocalVideoScript(
       visualText,
       voiceoverText: contentType === 'video' ? spoken || visualText : '',
       motionType: KINETIC_MOTIONS[index % KINETIC_MOTIONS.length],
-      duration: Math.min(7, Math.max(4, perScene)),
+      duration: Math.min(90, Math.max(3, perScene)),
     };
   });
 
@@ -803,13 +805,16 @@ export async function normalizeStudioForm(input: {
     .map((part, index) => `${index + 1}. [${part.role}] ${part.title} — ${part.body}`)
     .join('\n');
   const system = [
-    'Bạn là biên tập LYON Studio. Chỉ tiếng Việt có dấu.',
-    'Điền đúng form JSON, không markdown.',
+    'Bạn là giám đốc nghệ thuật LYON Studio. Chỉ tiếng Việt có dấu.',
+    'Điền form JSON để ghép vào layout thiết kế — không markdown.',
     'Schema: {"title": string, "fieldValues": {"title": string}, "parts": [{"id": string, "role": "hook|body|cta|slide|section|item", "title": string, "body": string, "notes": string}]}',
-    'title và mỗi part.title/body phải ngắn, đúng loại mẫu và đúng file xuất.',
-    'Không bịa số liệu. Giữ ô user đã viết nếu hợp lý.',
+    'title: 3–8 từ, như tiêu đề poster.',
+    'part.title: một ý, tối đa 8 từ. part.body: 1–2 câu, cụ thể, không sáo rỗng.',
+    'CTA (role cta): động từ + hành động (Đăng ký ngày hội / Giữ chỗ ngay).',
+    'Không bịa số liệu, tên người, ngày. Giữ ô user đã viết nếu hợp lý.',
+    'Điền thêm fieldValues có sẵn từ form (recipient, fullName, stats…) nếu brief có.',
     input.fileLabel
-      ? `File xuất của mẫu này là ${input.fileLabel} — viết chữ vừa khít file đó, không viết như loại khác.`
+      ? `File xuất của mẫu này là ${input.fileLabel} — mật độ chữ vừa khít file đó.`
       : '',
     input.purpose ? `Mẫu dành cho: ${input.purpose}.` : '',
   ]

@@ -70,6 +70,45 @@ export async function updateSettings(
   }
 }
 
+/** GET /api/v1/settings/ollama-models — model đã pull trên máy */
+export async function listOllamaModels(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const baseRaw =
+      (typeof req.query.baseUrl === 'string' && req.query.baseUrl.trim()) ||
+      'http://127.0.0.1:11434/v1'
+    const root = baseRaw.replace(/\/v1\/?$/, '').replace(/\/$/, '')
+    const url = `${root}/api/tags`
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!response.ok) {
+      res.status(502).json({
+        success: false,
+        error: `Ollama trả ${response.status} từ ${url}`,
+        models: [],
+      })
+      return
+    }
+    const data = (await response.json()) as {
+      models?: Array<{ name?: string; model?: string }>
+    }
+    const models = (data.models ?? [])
+      .map((m) => (m.name || m.model || '').trim())
+      .filter(Boolean)
+    res.status(200).json({ success: true, models })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định'
+    res.status(500).json({
+      success: false,
+      error: `Không đọc được model Ollama: ${message}`,
+      models: [],
+    })
+  }
+}
+
 /** POST /api/v1/settings/test-llm */
 export async function testLlm(req: Request, res: Response): Promise<void> {
   try {

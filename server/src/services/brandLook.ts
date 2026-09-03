@@ -180,8 +180,11 @@ export function resolveBrandLook(input: {
       namedHex(text, 'nền') ||
       base.bg,
     text: hex(input.palette?.text) || namedHex(text, 'chữ') || base.text,
-    surface: base.surface,
-    ink: base.ink,
+    surface:
+      hex(input.palette?.background) ||
+      namedHex(text, 'nền') ||
+      base.surface,
+    ink: hex(input.palette?.text) || namedHex(text, 'chữ') || base.ink,
     muted: base.muted,
   }
 }

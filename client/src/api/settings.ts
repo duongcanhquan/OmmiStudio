@@ -92,6 +92,20 @@ export async function saveSettings(
   return data.settings
 }
 
+export async function fetchOllamaModels(
+  baseUrl?: string
+): Promise<string[]> {
+  const { data } = await settingsApi.get<{
+    success: boolean
+    models?: string[]
+    error?: string
+  }>('/settings/ollama-models', {
+    params: baseUrl ? { baseUrl } : undefined,
+    timeout: 8_000,
+  })
+  return data.models ?? []
+}
+
 export async function testLlmConnection(body: {
   apiKey?: string
   model?: string

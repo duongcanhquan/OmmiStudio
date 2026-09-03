@@ -51,10 +51,53 @@ export async function skillBriefForTemplate(
   ].join('\n');
 }
 
+function cssPageSize(paper?: string): string {
+  const p = (paper ?? 'A4').toLowerCase();
+  const landscape = /land|ngang/.test(p);
+  if (/a3/.test(p)) return landscape ? 'A3 landscape' : 'A3';
+  if (/letter/.test(p)) return landscape ? 'letter landscape' : 'letter';
+  if (/a5/.test(p)) return landscape ? 'A5 landscape' : 'A5';
+  return landscape ? 'A4 landscape' : 'A4';
+}
+
+const FACT_FIELDS: Array<[string, string]> = [
+  ['recipient', 'Người nhận'],
+  ['achievement', 'Thành tích'],
+  ['date', 'Ngày cấp'],
+  ['fullName', 'Họ tên'],
+  ['role', 'Vị trí'],
+  ['signer', 'Người ký'],
+  ['datetime', 'Thời gian'],
+  ['venue', 'Địa điểm'],
+  ['stats', 'Số liệu'],
+];
+
+function injectFieldFacts(
+  html: string,
+  fields?: Record<string, string>
+): string {
+  if (!fields) return html;
+  const rows = FACT_FIELDS.filter(([key]) => fields[key]?.trim())
+    .map(
+      ([key, label]) =>
+        `<p class="lyon-fact"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(
+          fields[key].trim()
+        )}</p>`
+    )
+    .join('');
+  if (!rows) return html;
+  const block = `<div class="lyon-facts" style="margin:12px 0;font-size:15px;line-height:1.45">${rows}</div>`;
+  if (/<h1[\s\S]*?<\/h1>/i.test(html)) {
+    return html.replace(/(<h1[\s\S]*?<\/h1>)/i, `$1${block}`);
+  }
+  return html;
+}
+
 function injectBrand(
   html: string,
   look: BrandLook,
-  capture: SkillCapture
+  capture: SkillCapture,
+  paper?: string
 ): string {
   const hideOthers =
     capture === 'first-card' || capture === 'packed-card'
@@ -88,13 +131,15 @@ function injectBrand(
   const print =
     capture === 'print'
       ? `
-  @page { size: A4; margin: 10mm; }
+  @page { size: ${cssPageSize(paper)}; margin: 10mm; }
   @media print {
     body { background: #fff !important; padding: 0 !important; }
     .page, .card, .sheet { box-shadow: none !important; margin: 0 !important; }
   }`
       : '';
   const css = `
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet"/>
 <style data-lyon-brand>
   :root {
     --brand-primary: ${look.primary};
@@ -103,6 +148,26 @@ function injectBrand(
     --accent: ${look.accent};
     --accent-2: ${look.secondary};
     --accent-3: ${look.primary};
+    --brand-bg: ${look.surface};
+    --brand-ink: ${look.ink};
+    --brand-text: ${look.text};
+  }
+  html, body {
+    background: ${look.surface} !important;
+    color: ${look.ink} !important;
+  }
+  .card, .sheet, .page {
+    background: ${look.surface};
+    color: ${look.ink};
+  }
+  h1, h2, .hero-title, .title {
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: ${look.ink};
+  }
+  .badge, .cta, [class*="pill"] {
+    background: ${look.accent} !important;
+    color: ${look.bg} !important;
   }
   ${hideOthers}
   ${showDeck}
@@ -123,25 +188,27 @@ function injectBrand(
   return css + next;
 }
 
-function heroMarkup(title: string): string {
+function heroMarkup(title: string, accent: string): string {
   const words = title.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
   if (words.length === 0) return 'LYON Studio';
   if (words.length === 1) return escapeHtml(words[0]);
   if (words.length === 2) {
-    return `${escapeHtml(words[0])}<br/><span style="color:#9c2a25">${escapeHtml(words[1])}</span>`;
+    return `${escapeHtml(words[0])}<br/><span style="color:${accent}">${escapeHtml(words[1])}</span>`;
   }
   const last = words[words.length - 1] ?? '';
   const rest = words.slice(0, -1);
   const mid = Math.max(1, Math.ceil(rest.length / 2));
-  return `${escapeHtml(rest.slice(0, mid).join(' '))}<br/>${escapeHtml(rest.slice(mid).join(' '))}<br/><span style="color:#9c2a25">${escapeHtml(last)}</span>`;
+  return `${escapeHtml(rest.slice(0, mid).join(' '))}<br/>${escapeHtml(rest.slice(mid).join(' '))}<br/><span style="color:${accent}">${escapeHtml(last)}</span>`;
 }
 
 function packFirstCard(
   html: string,
   title: string,
   parts: ScriptPart[],
-  brand: string
+  look: BrandLook
 ): string {
+  const brand = look.name;
+  const accent = look.accent;
   const points = parts
     .map((part) => part.title?.trim() || part.body?.trim() || '')
     .filter(Boolean)
@@ -155,10 +222,10 @@ function packFirstCard(
     parts.find((part) => part.role === 'cta')?.title ||
     'Lưu bài · Chia sẻ';
   const icons = [
-    '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9c2a25" stroke-width="2"><path d="M6 4h12v16l-6-3-6 3z"/></svg>',
-    '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9c2a25" stroke-width="2"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>',
-    '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9c2a25" stroke-width="2"><path d="M12 3l2.4 6.8H21l-5.4 4.2 2 6.8L12 17.2 6.4 20.8l2-6.8L3 9.8h6.6z"/></svg>',
-    '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#9c2a25" stroke-width="2"><path d="M4 6h16v10H7l-3 3V6z"/></svg>',
+    `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="${accent}" stroke-width="2"><path d="M6 4h12v16l-6-3-6 3z"/></svg>`,
+    `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="${accent}" stroke-width="2"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>`,
+    `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="${accent}" stroke-width="2"><path d="M12 3l2.4 6.8H21l-5.4 4.2 2 6.8L12 17.2 6.4 20.8l2-6.8L3 9.8h6.6z"/></svg>`,
+    `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="${accent}" stroke-width="2"><path d="M4 6h16v10H7l-3 3V6z"/></svg>`,
   ];
   const items = points
     .map(
@@ -184,7 +251,7 @@ function packFirstCard(
       .join('')}</div>
     <div style="margin:auto 0 12px">
       <div style="font-size:22px;font-weight:600;opacity:0.7;margin-bottom:14px">${escapeHtml(brand)}</div>
-      <h2 class="hero">${heroMarkup(title)}</h2>
+      <h2 class="hero">${heroMarkup(title, accent)}</h2>
       ${
         subtitle && subtitle !== title
           ? `<p class="body" style="margin:28px 0 0;max-width:22ch">${escapeHtml(subtitle)}</p>`
@@ -193,7 +260,7 @@ function packFirstCard(
     </div>
     <div style="margin-top:8px">${items}</div>
     <div style="margin-top:auto;display:flex;gap:12px;flex-wrap:wrap;font-size:20px;font-weight:700">
-      <span style="padding:10px 22px;background:#9c2a25;color:#fff7f3;border-radius:999px">${escapeHtml(cta)}</span>
+      <span style="padding:10px 22px;background:${accent};color:${look.bg};border-radius:999px">${escapeHtml(cta)}</span>
     </div>
     <div class="watermark">@${escapeHtml(brand)}</div>`;
 
@@ -307,6 +374,7 @@ export async function fillStudioSkillHtml(input: {
   prompt?: string;
   palette?: BrandPaletteInput | null;
   media?: BrandMedia | null;
+  fieldValues?: Record<string, string>;
 }): Promise<string | null> {
   const bind = resolveSkillBind(input.templateId, input.layoutId);
   if (!bind) return null;
@@ -325,9 +393,14 @@ export async function fillStudioSkillHtml(input: {
       look.name
     );
     if (bind.capture === 'packed-card') {
-      filled = packFirstCard(filled, input.title, input.parts, look.name);
+      filled = packFirstCard(filled, input.title, input.parts, look);
     }
-    return injectBrandMedia(injectBrand(filled, look, bind.capture), input.media);
+    filled = injectFieldFacts(filled, input.fieldValues);
+    const paper = input.fieldValues?.paper || input.fieldValues?.size;
+    return injectBrandMedia(
+      injectBrand(filled, look, bind.capture, paper),
+      input.media
+    );
   } catch {
     return null;
   }

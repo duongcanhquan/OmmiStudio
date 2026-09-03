@@ -14,6 +14,16 @@ const FONT_CANDIDATES = [
   '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
 ];
 
+function pageSizeFromPaper(paper?: string): [number, number] {
+  const p = (paper ?? 'A4').toLowerCase();
+  const landscape = /land|ngang|-2$/.test(p);
+  let size: [number, number] = [595.28, 841.89];
+  if (/letter/.test(p)) size = [612, 792];
+  else if (/a3/.test(p)) size = [841.89, 1190.55];
+  else if (/a5/.test(p)) size = [419.53, 595.28];
+  return landscape ? [size[1], size[0]] : size;
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const clean = hex.replace('#', '');
   return {
@@ -61,8 +71,7 @@ export async function renderBrandedPdf(input: {
   const fontBytes = await fsPromises.readFile(fontPath);
   const font = await pdf.embedFont(fontBytes, { subset: true });
 
-  const isLetter = /letter/i.test(input.paper ?? '');
-  const pageSize: [number, number] = isLetter ? [612, 792] : [595.28, 841.89];
+  const pageSize = pageSizeFromPaper(input.paper);
   const bg = hexToRgb(look.surface);
   const text = hexToRgb(look.ink);
   const accent = hexToRgb(look.accent);

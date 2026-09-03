@@ -73,6 +73,7 @@ const INITIAL_RESULT: StudioResult = {
   uploadedToDrive: false,
   message: null,
   previewUrl: null,
+  degraded: false,
 }
 
 function extractErrorMessage(err: unknown): string {
@@ -108,6 +109,12 @@ function brandPaletteFrom(selection: StudioSelection) {
     background: brand.palette.background,
     text: brand.palette.text,
   }
+}
+
+function layoutKindFrom(selection: StudioSelection) {
+  const id =
+    selection.layoutId ?? defaultLayoutId(selection.selectedTemplate?.id)
+  return layoutById(id)?.kind
 }
 
 function brandMediaFrom(selection: StudioSelection) {
@@ -389,6 +396,7 @@ export function StudioPage({
           layoutId:
             sel.layoutId ??
             defaultLayoutId(sel.selectedTemplate?.id),
+          layoutKind: layoutKindFrom(sel),
           brandId: sel.selectedBrand?.id,
           motionId: sel.selectedMotion?.motionType || sel.selectedMotion?.id,
           fieldValues: sel.fieldValues,
@@ -529,6 +537,7 @@ export function StudioPage({
           layoutId:
             selection.layoutId ??
             defaultLayoutId(selection.selectedTemplate?.id),
+          layoutKind: layoutKindFrom(selection),
           brandId: selection.selectedBrand?.id,
           motionId:
             selection.selectedMotion?.motionType ||
@@ -550,13 +559,18 @@ export function StudioPage({
           driveUrl: response.driveUrl ?? null,
           uploadedToDrive: Boolean(response.uploadedToDrive),
           message: response.message ?? null,
+          degraded: Boolean(response.degraded),
         }))
         setRenderPhase('done')
         onNotify?.(
-          response.message ||
-            (response.uploadedToDrive
-              ? 'File hoàn chỉnh đã lên Google Drive.'
-              : 'File hoàn chỉnh đã sẵn sàng — bấm Tải về.')
+          response.degraded
+            ? response.message ||
+                'Đã có file HTML. Nếu cần MP4/PDF, xuất lại sau khi máy nhận Chrome/FFmpeg.'
+            : response.message ||
+                (response.uploadedToDrive
+                  ? 'File hoàn chỉnh đã lên Google Drive.'
+                  : 'File hoàn chỉnh đã sẵn sàng — bấm Tải về.'),
+          Boolean(response.degraded)
         )
       } catch (err) {
         const message = extractErrorMessage(err)
@@ -662,7 +676,11 @@ export function StudioPage({
                   <li key={s}>
                     <button
                       type="button"
-                      onClick={() => setStep(s)}
+                      onClick={() => {
+                        if (s === 5 && !fieldsComplete(selection)) return
+                        if (s === 5 && !selectionHasContent(selection)) return
+                        setStep(s)
+                      }}
                       className={cn(
                         'flex size-8 cursor-pointer items-center justify-center rounded-full text-xs font-semibold transition-colors',
                         step === s

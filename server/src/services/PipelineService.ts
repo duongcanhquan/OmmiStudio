@@ -52,12 +52,16 @@ import {
 } from './ChromeCaptureService';
 import { parseSocialSize } from './LocalPngService';
 import {
+  clampSceneDuration,
+  durationHintFromFields,
   exportKindForType,
   parseParts,
   partsToVideoScript,
   type ScriptPart,
 } from './scriptForm';
 import { injectBrandMedia, type BrandMedia } from './BrandMediaService';
+import { renderLayoutMatchHtml } from './LayoutMatchHtml';
+import { resolveBrandLook } from './brandLook';
 
 export interface CliStepLog {
   stdout: string;
@@ -73,6 +77,7 @@ export interface PipelineOptions {
   voiceRegion: VietnameseVoiceRegion;
   templateId?: string;
   layoutId?: string;
+  layoutKind?: string;
   brandId?: string;
   /** Preferred motion recipe id / motionType applied across scenes */
   preferredMotion?: string;
@@ -103,6 +108,27 @@ export interface PipelineResult {
   brandId?: string;
   preferredMotion?: string;
   uploadedToDrive?: boolean;
+}
+
+function htmlForChosenLayout(
+  options: PipelineOptions,
+  title: string,
+  parts: ScriptPart[],
+  prompt?: string
+): string | null {
+  const html = renderLayoutMatchHtml({
+    layoutId: options.layoutId,
+    layoutKind: options.layoutKind,
+    title,
+    parts,
+    look: resolveBrandLook({
+      brandId: options.brandId,
+      prompt,
+      palette: options.brandPalette,
+    }),
+    fieldValues: options.fieldValues,
+  });
+  return html ? injectBrandMedia(html, options.brandMedia) : null;
 }
 
 export interface PreviewPipelineResult {
@@ -357,18 +383,9 @@ async function publishArtifact(
       mimeType
     );
 
-    try {
-      await fs.unlink(absolutePath);
-    } catch (err) {
-      console.warn(
-        '[pipeline] uploaded to Drive but failed to delete local file:',
-        err
-      );
-    }
-
     return {
       finalOutputPath: drive.webViewLink,
-      absoluteFinalPath: null,
+      absoluteFinalPath: absolutePath,
       drive,
       uploadedToDrive: true,
     };
@@ -400,8 +417,13 @@ export async function runVideoPipeline(
 
   const parts = parseParts(rawParts);
   const aspect = fieldValues.aspect ? `Tỷ lệ khung hình: ${fieldValues.aspect}` : '';
-  const durationHint = Number(fieldValues.duration);
-  const effectivePrompt = [prompt?.trim(), aspect].filter(Boolean).join('\n');
+  const resolution = fieldValues.resolution
+    ? `Độ phân giải: ${fieldValues.resolution}`
+    : '';
+  const durationHint = durationHintFromFields(fieldValues);
+  const effectivePrompt = [prompt?.trim(), aspect, resolution]
+    .filter(Boolean)
+    .join('\n');
 
   if (!effectivePrompt && parts.length === 0) {
     throw new Error('runVideoPipeline: cần form từng phần hoặc kịch bản.');
@@ -418,7 +440,7 @@ export async function runVideoPipeline(
         ? partsToVideoScript(
             fieldValues.title || '',
             parts,
-            Number.isFinite(durationHint) ? durationHint : undefined
+            durationHint
           )
         : await resolveVideoScript(
             effectivePrompt,
@@ -467,13 +489,22 @@ export async function runVideoPipeline(
       title: scene.visualText,
       body: scene.voiceoverText,
     }));
-    const designedHtml = await fillHtmlVideoTemplate({
+    const layoutHtml = htmlForChosenLayout(
+      options,
+      script.title || fieldValues.title || 'LYON Studio',
+      sceneParts,
+      effectivePrompt
+    );
+    const designedHtml =
+      layoutHtml ||
+      (await fillHtmlVideoTemplate({
       templateId,
       layoutId,
       title: script.title || fieldValues.title || 'LYON Studio',
       parts: sceneParts,
       brandId,
       prompt: effectivePrompt,
+      palette: options.brandPalette,
       preferredMotion,
       scenes: script.scenes.map((scene) => ({
         title: scene.visualText,
@@ -481,7 +512,7 @@ export async function runVideoPipeline(
         duration: scene.duration,
       })),
       media: brandMedia,
-    });
+    }));
     await fs.writeFile(
       indexHtmlPath,
       designedHtml ||
@@ -499,24 +530,29 @@ export async function runVideoPipeline(
     const posters: string[] = [];
     const size = parseVideoSize(effectivePrompt);
     const totalSeconds = script.scenes.reduce(
-      (sum, scene) => sum + Math.max(4, Math.min(8, scene.duration || 5)),
+      (sum, scene) => sum + clampSceneDuration(scene.duration || 5),
       0
     );
+    const chromeMaxSec = 20;
     let recorded = false;
-    if (designedHtml && hasChromeCapture()) {
+    if (designedHtml && hasChromeCapture() && totalSeconds <= chromeMaxSec) {
       try {
+        const recordSec = Math.min(
+          chromeMaxSec,
+          Math.max(6, totalSeconds || 8)
+        );
         const recordedPath = path.join(workspacePath, 'recorded.mp4');
         await recordHtmlToMp4({
           htmlPath: indexHtmlPath,
           outputPath: recordedPath,
           width: size.w,
           height: size.h,
-          seconds: Math.min(16, Math.max(6, totalSeconds || 8)),
+          seconds: recordSec,
         });
         await assembleVideoClips({
           clipPaths: [recordedPath],
           outputPath: finalMp4,
-          totalSeconds: Math.min(16, Math.max(6, totalSeconds || 8)),
+          totalSeconds: recordSec,
         });
         recorded = true;
         cliLogs['html-video'] = {
@@ -706,7 +742,11 @@ export async function runPreviewPipeline(
     const previewParts = parseParts(rawParts);
     let script =
       previewParts.length > 0
-        ? partsToVideoScript(fieldValues.title || '', previewParts)
+        ? partsToVideoScript(
+            fieldValues.title || '',
+            previewParts,
+            durationHintFromFields(fieldValues)
+          )
         : await resolveVideoScript(
             prompt?.trim() || '',
             type,
@@ -759,9 +799,17 @@ export async function runPreviewPipeline(
       prompt,
       palette: brandPalette,
       media: brandMedia,
+      fieldValues,
     });
+    const chosenLayoutHtml = htmlForChosenLayout(
+      options,
+      previewTitle,
+      previewBodyParts,
+      prompt
+    );
     await fs.writeFile(
       indexHtmlPath,
+      chosenLayoutHtml ||
       videoPreview ||
       skillPreview ||
       (socialPreview
@@ -808,26 +856,27 @@ export async function runPreviewPipeline(
                       templateType === 'certificate'
                     ? 'poster'
                     : 'slides',
+              fieldValues,
             }),
             brandMedia
           )),
       'utf-8'
     );
 
-    const layoutHtml = path.join(workspacePath, 'layout.html');
-    if (!socialPreview && !skillPreview && !videoPreview) {
+    const layoutHtmlPath = path.join(workspacePath, 'layout.html');
+    if (!chosenLayoutHtml && !socialPreview && !skillPreview && !videoPreview) {
       try {
-        await runHtmlAnything(indexHtmlPath, layoutHtml, workspacePath);
+        await runHtmlAnything(indexHtmlPath, layoutHtmlPath, workspacePath);
       } catch {
         // Soft-fail — preview still works from index.html
       }
     }
 
     const motionHtml = path.join(workspacePath, 'motion.html');
-    const motionInput = (await fileExists(layoutHtml))
-      ? layoutHtml
+    const motionInput = (await fileExists(layoutHtmlPath))
+      ? layoutHtmlPath
       : indexHtmlPath;
-    if (!socialPreview && !skillPreview && !videoPreview) {
+    if (!chosenLayoutHtml && !socialPreview && !skillPreview && !videoPreview) {
       try {
         await runMotionAnything(motionInput, motionHtml, workspacePath);
       } catch {
@@ -837,11 +886,12 @@ export async function runPreviewPipeline(
 
     const previewName = 'preview.html';
     const previewAbs = path.join(workspacePath, previewName);
-    const best =
-      (await fileExists(motionHtml))
+    const best = chosenLayoutHtml
+      ? indexHtmlPath
+      : (await fileExists(motionHtml))
         ? motionHtml
-        : (await fileExists(layoutHtml))
-          ? layoutHtml
+        : (await fileExists(layoutHtmlPath))
+          ? layoutHtmlPath
           : indexHtmlPath;
     await fs.copyFile(best, previewAbs);
 
@@ -913,7 +963,11 @@ export async function runGeneratePipeline(
   try {
     let script =
       parts.length > 0
-        ? partsToVideoScript(fieldValues.title || '', parts)
+        ? partsToVideoScript(
+            fieldValues.title || '',
+            parts,
+            durationHintFromFields(fieldValues)
+          )
         : await resolveVideoScript(
             prompt.trim(),
             type,
@@ -932,25 +986,34 @@ export async function runGeneratePipeline(
     const title = fieldValues.title || script.title || 'LYON Studio';
     const htmlName = type === 'poster' ? 'poster.html' : 'slides.html';
     const htmlPath = path.join(workspacePath, htmlName);
+    const bodyParts = parts.length
+      ? parts
+      : script.scenes.map((scene, index) => ({
+          id: `scene-${index + 1}`,
+          role: 'body' as const,
+          title: scene.visualText,
+          body: scene.voiceoverText,
+        }));
+    const chosenLayoutHtml = htmlForChosenLayout(
+      options,
+      title,
+      bodyParts,
+      prompt
+    );
     const skillHtml = await fillStudioSkillHtml({
       templateId,
       layoutId,
       title,
-      parts: parts.length
-        ? parts
-        : script.scenes.map((scene, index) => ({
-            id: `scene-${index + 1}`,
-            role: 'body',
-            title: scene.visualText,
-            body: scene.voiceoverText,
-          })),
+      parts: bodyParts,
       brandId,
       prompt,
       palette: brandPalette,
       media: brandMedia,
+      fieldValues,
     });
     await fs.writeFile(
       htmlPath,
+      chosenLayoutHtml ||
       skillHtml ||
         injectBrandMedia(
           buildBrandedHtml({
@@ -962,6 +1025,7 @@ export async function runGeneratePipeline(
             palette: brandPalette,
             templateType,
             mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
+            fieldValues,
           }),
           brandMedia
         ),
@@ -974,7 +1038,7 @@ export async function runGeneratePipeline(
       fileName = 'document.pdf';
       artifactPath = path.join(workspacePath, fileName);
       let printed = false;
-      if (skillHtml && hasChromeCapture()) {
+      if ((chosenLayoutHtml || skillHtml) && hasChromeCapture()) {
         try {
           await printHtmlToPdf({ htmlPath, outputPath: artifactPath });
           printed = true;
@@ -1010,7 +1074,7 @@ export async function runGeneratePipeline(
           brandId,
           palette: brandPalette,
           prompt,
-          paper: fieldValues.paper,
+          paper: fieldValues.paper || fieldValues.size,
         });
       }
     }
@@ -1086,7 +1150,11 @@ async function runImagePipeline(
   try {
     const script =
       parts.length > 0
-        ? partsToVideoScript(fieldValues.title || '', parts)
+        ? partsToVideoScript(
+            fieldValues.title || '',
+            parts,
+            durationHintFromFields(fieldValues)
+          )
         : await resolveVideoScript(
             prompt.trim(),
             type,
@@ -1110,6 +1178,12 @@ async function runImagePipeline(
           title: scene.visualText,
           body: scene.voiceoverText,
         }));
+    const chosenLayoutHtml = htmlForChosenLayout(
+      options,
+      title,
+      imageParts,
+      prompt
+    );
     const skillHtml = await fillStudioSkillHtml({
       templateId,
       layoutId,
@@ -1119,9 +1193,11 @@ async function runImagePipeline(
       prompt,
       palette: brandPalette,
       media: brandMedia,
+      fieldValues,
     });
     await fs.writeFile(
       previewHtml,
+      chosenLayoutHtml ||
       skillHtml ||
         injectBrandMedia(
           buildSocialGraphicHtml({
@@ -1142,7 +1218,22 @@ async function runImagePipeline(
     let fileName = 'bai-dang.html';
     const size = parseSocialSize(fieldValues);
     const capture = resolveSkillBind(templateId, layoutId)?.capture;
-    if (skillHtml && hasChromeCapture() && capture === 'all-cards') {
+    if (chosenLayoutHtml && hasChromeCapture()) {
+      try {
+        const pngName = 'bai-dang.png';
+        const pngPath = path.join(workspacePath, pngName);
+        await screenshotHtml({
+          htmlPath: previewHtml,
+          outputPath: pngPath,
+          width: size.w,
+          height: size.h,
+        });
+        artifactPath = pngPath;
+        fileName = pngName;
+      } catch (err) {
+        console.error('[pipeline] Chrome PNG layout failed:', err);
+      }
+    } else if (skillHtml && hasChromeCapture() && capture === 'all-cards') {
       const total = countSkillCards(skillHtml);
       const pngs: string[] = [];
       for (let i = 1; i <= total; i += 1) {
@@ -1191,7 +1282,7 @@ async function runImagePipeline(
         console.error('[pipeline] Chrome PNG skill failed:', err);
       }
     }
-    if (fileName === 'bai-dang.html') {
+    if (fileName === 'bai-dang.html' && !chosenLayoutHtml) {
       try {
         const rendered = await renderSocialPngs({
           title,

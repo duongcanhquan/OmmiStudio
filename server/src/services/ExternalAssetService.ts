@@ -8,12 +8,17 @@ function clampQuery(input: string, maxLen = 80): string {
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
+function designImageUrl(w: number, h: number, query: string): string {
+  const q = clampQuery(
+    `${query}, editorial photography, cinematic lighting, high-end graphic design, no text, no watermark`,
+    160
+  );
+  const encoded = encodeURIComponent(q || 'minimal editorial design photography');
+  return `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&nologo=true&model=flux`;
+}
+
 function unsplashSourceUrl(w: number, h: number, query: string): string {
-  const q = clampQuery(query);
-  // Unsplash Source: miễn phí, không cần API key (dựa theo redirect).
-  // Truyền query dạng URL-encoded để tránh lỗi ký tự đặc biệt.
-  const encoded = encodeURIComponent(q);
-  return `https://source.unsplash.com/${w}x${h}/?${encoded}`;
+  return designImageUrl(w, h, query);
 }
 
 function parseFirstNumber(raw: string): number | null {
@@ -85,15 +90,6 @@ function quickChartUrlBar({
   return `https://quickchart.io/chart?c=${c}&width=${width}&height=${height}&backgroundColor=transparent`;
 }
 
-function fallbackChartData(seedRaw: string): { labels: string[]; values: number[] } {
-  const seed = Math.abs(
-    Array.from(seedRaw).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-  );
-  const labels = ['A', 'B', 'C', 'D', 'E'].slice(0, 4).map((l, i) => `${l}${i + 1}`);
-  const values = labels.map((_, i) => ((seed + i * 17) % 90) + 10);
-  return { labels, values };
-}
-
 export async function enrichBrandMediaFromPrompt(input: {
   brandMedia: BrandMedia | null;
   templateType?: string;
@@ -135,33 +131,20 @@ export async function enrichBrandMediaFromPrompt(input: {
   if (input.templateType === 'infographic') {
     const statsRaw = input.fieldValues?.stats ?? '';
     const parsed = splitStatsLines(statsRaw);
-    const chart = parsed.length
-      ? quickChartUrlBar({
-          width: baseW,
-          height: baseH,
-          labels: parsed.map((p) => p.label),
-          values: parsed.map((p) => p.value),
-          title: title || undefined,
-        })
-      : (() => {
-          const fb = fallbackChartData(title || query);
-          return quickChartUrlBar({
+    if (parsed.length) {
+      return {
+        logo,
+        photos: [
+          quickChartUrlBar({
             width: baseW,
             height: baseH,
-            labels: fb.labels,
-            values: fb.values,
+            labels: parsed.map((p) => p.label),
+            values: parsed.map((p) => p.value),
             title: title || undefined,
-          });
-        })();
-
-    return {
-      logo,
-      photos: [
-        chart,
-        unsplashSourceUrl(baseW, baseH, `${query} chart`),
-        unsplashSourceUrl(baseW, baseH, `${query} data visualization`),
-      ],
-    };
+          }),
+        ],
+      };
+    }
   }
 
   const nextPhotos = [

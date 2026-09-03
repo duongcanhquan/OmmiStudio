@@ -60,41 +60,6 @@ const ICON_CYCLE: IconName[] = [
   'spark',
 ];
 
-function campusArt(look: BrandLook): string {
-  return `<svg class="campus" viewBox="0 0 640 420" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${look.secondary}"/>
-        <stop offset="100%" stop-color="${look.primary}"/>
-      </linearGradient>
-    </defs>
-    <rect width="640" height="420" fill="url(#sky)"/>
-    <circle cx="520" cy="78" r="46" fill="${look.accent}" opacity=".9"/>
-    <rect x="70" y="168" width="160" height="190" rx="8" fill="${look.surface}" opacity=".92"/>
-    <rect x="92" y="190" width="40" height="40" fill="${look.primary}"/>
-    <rect x="148" y="190" width="40" height="40" fill="${look.secondary}"/>
-    <rect x="92" y="246" width="40" height="40" fill="${look.secondary}"/>
-    <rect x="148" y="246" width="40" height="40" fill="${look.accent}"/>
-    <rect x="250" y="120" width="190" height="238" rx="10" fill="${look.surface}" opacity=".95"/>
-    <polygon points="240,120 345,52 460,120" fill="${look.accent}"/>
-    <rect x="318" y="268" width="54" height="90" fill="${look.primary}"/>
-    <rect x="276" y="156" width="36" height="36" fill="${look.secondary}"/>
-    <rect x="378" y="156" width="36" height="36" fill="${look.primary}"/>
-    <rect x="276" y="208" width="36" height="36" fill="${look.primary}"/>
-    <rect x="378" y="208" width="36" height="36" fill="${look.secondary}"/>
-    <rect x="470" y="188" width="120" height="170" rx="8" fill="${look.surface}" opacity=".9"/>
-    <rect x="492" y="210" width="32" height="32" fill="${look.accent}"/>
-    <rect x="536" y="210" width="32" height="32" fill="${look.primary}"/>
-    <rect x="492" y="256" width="32" height="32" fill="${look.primary}"/>
-    <rect x="536" y="256" width="32" height="32" fill="${look.secondary}"/>
-    <rect x="0" y="350" width="640" height="70" fill="${look.ink}" opacity=".18"/>
-    <circle cx="118" cy="338" r="18" fill="${look.ink}" opacity=".35"/>
-    <rect x="104" y="356" width="28" height="36" rx="6" fill="${look.ink}" opacity=".35"/>
-    <circle cx="178" cy="338" r="16" fill="${look.ink}" opacity=".28"/>
-    <rect x="166" y="354" width="24" height="34" rx="6" fill="${look.ink}" opacity=".28"/>
-  </svg>`;
-}
-
 function blocksFrom(
   parts: ScriptPart[],
   script: VideoScript | undefined,
@@ -116,7 +81,42 @@ function blocksFrom(
 function fonts(): string {
   return `<link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap" rel="stylesheet"/>`;
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet"/>`;
+}
+
+function displayFont(): string {
+  return '"Fraunces", "Be Vietnam Pro", "Times New Roman", serif';
+}
+
+function bodyFont(): string {
+  return '"Be Vietnam Pro", "Arial Unicode MS", sans-serif';
+}
+
+/** Tranh nền hình học — dùng khi chưa có ảnh brand. */
+function campusArt(look: BrandLook): string {
+  return `<svg class="campus" viewBox="0 0 800 900" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="mesh" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${look.primary}"/>
+        <stop offset="55%" stop-color="${look.secondary}"/>
+        <stop offset="100%" stop-color="${look.ink}"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="70%" cy="20%" r="50%">
+        <stop offset="0%" stop-color="${look.accent}" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="${look.accent}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="800" height="900" fill="url(#mesh)"/>
+    <rect width="800" height="900" fill="url(#glow)"/>
+    <g fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="1.2">
+      <circle cx="640" cy="160" r="120"/>
+      <circle cx="640" cy="160" r="78"/>
+      <path d="M0 620 L260 420 L520 640 L800 390"/>
+    </g>
+    <rect x="72" y="520" width="220" height="280" rx="8" fill="${look.surface}" fill-opacity=".12"/>
+    <rect x="312" y="460" width="168" height="340" rx="8" fill="${look.accent}" fill-opacity=".22"/>
+    <rect x="500" y="560" width="220" height="240" rx="8" fill="#fff" fill-opacity=".08"/>
+  </svg>`;
 }
 
 export function buildBrandedHtml(input: {
@@ -128,6 +128,7 @@ export function buildBrandedHtml(input: {
   palette?: BrandPaletteInput | null;
   mode: 'slides' | 'poster' | 'print';
   templateType?: string;
+  fieldValues?: Record<string, string>;
 }): string {
   const look = resolveBrandLook({
     brandId: input.brandId,
@@ -136,8 +137,9 @@ export function buildBrandedHtml(input: {
   });
   const blocks = blocksFrom(input.parts, input.script, input.title);
   const type = input.templateType || '';
+  const fields = input.fieldValues ?? {};
 
-  if (type === 'certificate') return certificateHtml(input.title, blocks, look);
+  if (type === 'certificate') return certificateHtml(input.title, blocks, look, fields);
   if (type === 'infographic') return infographicHtml(input.title, blocks, look);
   if (type === 'landing') return landingHtml(input.title, blocks, look);
   if (input.mode === 'poster' || type === 'poster' || type === 'event') {
@@ -156,11 +158,12 @@ function posterHtml(title: string, blocks: ScriptPart[], look: BrandLook): strin
     'Đăng ký ngay';
   const cards = (rest.length ? rest : blocks)
     .filter((b) => b.role !== 'cta' || rest.length === 0)
-    .slice(0, 4)
+    .slice(0, 3)
     .map((part, index) => {
       const icon = ICON_CYCLE[index % ICON_CYCLE.length];
       return `<article class="card">
-        <span class="glyph">${svgIcon(icon, look.primary, 26)}</span>
+        <span class="idx">${String(index + 1).padStart(2, '0')}</span>
+        <span class="glyph">${svgIcon(icon, look.accent, 22)}</span>
         <h3>${escapeHtml(part.title || `Mục ${index + 1}`)}</h3>
         <p>${escapeHtml(part.body || '')}</p>
       </article>`;
@@ -175,42 +178,51 @@ function posterHtml(title: string, blocks: ScriptPart[], look: BrandLook): strin
   ${fonts()}
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Be Vietnam Pro", "Arial Unicode MS", sans-serif; background: #e2e8f0; color: ${look.ink}; }
+    body { margin: 0; font-family: ${bodyFont()}; background: ${look.ink}; color: ${look.ink}; }
     .sheet {
-      max-width: 900px; margin: 24px auto; background: ${look.surface};
-      overflow: hidden; box-shadow: 0 24px 60px #0f172a33;
+      max-width: 920px; margin: 0 auto; background: ${look.surface};
+      min-height: 100vh; overflow: hidden;
     }
-    .hero { display: grid; grid-template-columns: 1.1fr .9fr; min-height: 380px; background: ${look.primary}; color: #fff; }
-    .hero-copy { padding: 40px 36px 32px; display: flex; flex-direction: column; }
-    .brand { display: flex; align-items: center; gap: 10px; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: ${look.accent}; font-weight: 700; }
-    .brand .mark { width: 28px; height: 28px; border-radius: 8px; background: ${look.accent}; }
-    h1 { margin: 18px 0 12px; font-size: 46px; line-height: 1.08; letter-spacing: -.03em; }
-    .lead { margin: 0; font-size: 18px; line-height: 1.45; color: #dbeafe; max-width: 28ch; }
-    .cta { margin-top: auto; align-self: flex-start; background: ${look.accent}; color: ${look.ink}; font-weight: 800; padding: 12px 20px; border-radius: 999px; font-size: 15px; }
-    .hero-art { position: relative; min-height: 280px; }
-    .hero-art .campus { width: 100%; height: 100%; display: block; object-fit: cover; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px 32px 36px; }
-    .card { background: #fff; border: 1px solid ${look.primary}22; border-radius: 18px; padding: 18px 18px 16px; box-shadow: 0 8px 24px ${look.primary}14; }
-    .glyph { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 12px; background: ${look.primary}14; margin-bottom: 10px; }
-    .card h3 { margin: 0 0 6px; font-size: 17px; color: ${look.primary}; }
-    .card p { margin: 0; font-size: 14px; line-height: 1.45; color: ${look.muted}; }
-    footer { padding: 14px 32px 22px; display: flex; justify-content: space-between; color: ${look.muted}; font-size: 12px; }
-    @media (max-width: 720px) { .hero, .grid { grid-template-columns: 1fr; } }
+    .hero { position: relative; min-height: 62vh; color: #fff; isolation: isolate; }
+    .hero-art { position: absolute; inset: 0; z-index: 0; }
+    .hero-art .campus { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .hero::after {
+      content: ""; position: absolute; inset: 0; z-index: 1;
+      background: linear-gradient(180deg, ${look.primary}cc 0%, ${look.ink}ee 100%);
+    }
+    .hero-copy {
+      position: relative; z-index: 2; padding: 48px 44px 36px;
+      min-height: 62vh; display: flex; flex-direction: column;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: ${look.accent}; font-weight: 700; }
+    .brand .mark { width: 10px; height: 10px; border-radius: 99px; background: ${look.accent}; }
+    h1 { margin: 28px 0 16px; font-family: ${displayFont()}; font-size: clamp(40px, 7vw, 68px); line-height: .98; letter-spacing: -.04em; font-weight: 700; max-width: 14ch; }
+    .lead { margin: 0; font-size: 17px; line-height: 1.5; color: #e2e8f0; max-width: 36ch; font-weight: 400; }
+    .cta { margin-top: auto; align-self: flex-start; background: ${look.accent}; color: ${look.ink}; font-weight: 800; padding: 14px 22px; border-radius: 2px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid ${look.primary}22; }
+    .card { padding: 28px 24px 32px; border-right: 1px solid ${look.primary}18; }
+    .card:last-child { border-right: 0; }
+    .idx { display: block; font-size: 11px; letter-spacing: .18em; color: ${look.primary}; font-weight: 700; margin-bottom: 10px; }
+    .glyph { display: inline-flex; margin-bottom: 12px; }
+    .card h3 { margin: 0 0 8px; font-size: 18px; font-family: ${displayFont()}; color: ${look.primary}; }
+    .card p { margin: 0; font-size: 14px; line-height: 1.5; color: ${look.muted}; }
+    footer { padding: 16px 28px 22px; display: flex; justify-content: space-between; color: ${look.muted}; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .card { border-right: 0; border-bottom: 1px solid ${look.primary}18; } }
   </style>
 </head>
 <body>
   <article class="sheet">
     <header class="hero">
+      <div class="hero-art">${campusArt(look)}</div>
       <div class="hero-copy">
         <p class="brand"><span class="mark"></span>${escapeHtml(look.name)}</p>
         <h1>${escapeHtml(hero?.title || title)}</h1>
         <p class="lead">${escapeHtml(hero?.body || '')}</p>
         <span class="cta">${escapeHtml(cta)}</span>
       </div>
-      <div class="hero-art">${campusArt(look)}</div>
     </header>
     <section class="grid">${cards}</section>
-    <footer><span>${escapeHtml(look.name)}</span><span>Ấn phẩm LYON Studio</span></footer>
+    <footer><span>${escapeHtml(look.name)}</span><span>Ấn phẩm thiết kế</span></footer>
   </article>
 </body>
 </html>`;
@@ -243,15 +255,15 @@ function slidesHtml(title: string, blocks: ScriptPart[], look: BrandLook): strin
   ${fonts()}
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Be Vietnam Pro", "Arial Unicode MS", sans-serif; background: ${look.ink}; }
-    .slide { min-height: 100vh; display: grid; grid-template-columns: 280px 1fr; page-break-after: always; }
-    aside { background: ${look.primary}; color: #fff; padding: 36px 28px; display: flex; flex-direction: column; gap: 18px; }
-    .num { margin: 0; font-size: 42px; font-weight: 800; color: ${look.accent}; }
-    .brand { margin-top: auto; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; }
-    .copy { background: ${look.surface}; color: ${look.ink}; padding: 56px 56px; display: flex; flex-direction: column; justify-content: center; }
-    .kicker { margin: 0 0 10px; color: ${look.primary}; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    h2 { margin: 0 0 16px; font-size: 40px; line-height: 1.15; }
-    .copy p:last-child { margin: 0; font-size: 20px; line-height: 1.5; color: ${look.muted}; max-width: 36ch; }
+    body { margin: 0; font-family: ${bodyFont()}; background: ${look.ink}; }
+    .slide { min-height: 100vh; display: grid; grid-template-columns: 240px 1fr; page-break-after: always; }
+    aside { background: ${look.primary}; color: #fff; padding: 40px 28px; display: flex; flex-direction: column; gap: 18px; }
+    .num { margin: 0; font-family: ${displayFont()}; font-size: 56px; font-weight: 700; color: ${look.accent}; line-height: 1; }
+    .brand { margin-top: auto; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
+    .copy { background: ${look.surface}; color: ${look.ink}; padding: 64px 64px; display: flex; flex-direction: column; justify-content: center; }
+    .kicker { margin: 0 0 12px; color: ${look.primary}; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    h2 { margin: 0 0 18px; font-family: ${displayFont()}; font-size: clamp(32px, 4.5vw, 48px); line-height: 1.08; letter-spacing: -.03em; }
+    .copy p:last-child { margin: 0; font-size: 20px; line-height: 1.55; color: ${look.muted}; max-width: 38ch; }
   </style>
 </head>
 <body>${slides}</body>
@@ -277,10 +289,10 @@ function printHtml(title: string, blocks: ScriptPart[], look: BrandLook): string
   ${fonts()}
   <style>
     @page { size: A4; margin: 16mm; }
-    body { margin: 0; font-family: "Be Vietnam Pro", "Arial Unicode MS", sans-serif; background: ${look.surface}; color: ${look.ink}; }
-    header { background: ${look.primary}; color: #fff; padding: 28px 32px; }
-    header p { margin: 0; color: ${look.accent}; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; font-weight: 700; }
-    h1 { margin: 8px 0 0; font-size: 32px; }
+    body { margin: 0; font-family: ${bodyFont()}; background: ${look.surface}; color: ${look.ink}; }
+    header { background: ${look.primary}; color: #fff; padding: 36px 40px 32px; }
+    header p { margin: 0; color: ${look.accent}; letter-spacing: .18em; text-transform: uppercase; font-size: 11px; font-weight: 700; }
+    h1 { margin: 10px 0 0; font-family: ${displayFont()}; font-size: 36px; letter-spacing: -.02em; line-height: 1.1; }
     main { padding: 28px 32px 40px; }
     section { margin: 0 0 22px; padding-bottom: 16px; border-bottom: 1px solid ${look.primary}22; }
     .row { display: flex; align-items: center; gap: 10px; }
@@ -309,15 +321,15 @@ function infographicHtml(title: string, blocks: ScriptPart[], look: BrandLook): 
   return `<!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>${fonts()}
 <style>
-  body { margin: 0; font-family: "Be Vietnam Pro", sans-serif; background: ${look.primary}; color: #fff; }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 28px 48px; }
-  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  h1 { margin: 0; font-size: 36px; max-width: 16ch; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  article { background: ${look.surface}; color: ${look.ink}; border-radius: 20px; padding: 20px; min-height: 160px; }
-  article span { display: inline-flex; width: 48px; height: 48px; border-radius: 14px; background: ${look.primary}; align-items: center; justify-content: center; }
-  strong { display: block; margin: 12px 0 6px; font-size: 20px; color: ${look.primary}; }
-  p { margin: 0; color: ${look.muted}; }
+  body { margin: 0; font-family: ${bodyFont()}; background: ${look.ink}; color: #fff; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 32px 56px; }
+  .top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; gap: 24px; }
+  h1 { margin: 0; font-family: ${displayFont()}; font-size: clamp(32px, 5vw, 48px); max-width: 14ch; line-height: 1.05; letter-spacing: -.03em; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  article { background: ${look.surface}; color: ${look.ink}; border-radius: 4px; padding: 24px; min-height: 180px; }
+  article span { display: inline-flex; width: 44px; height: 44px; border-radius: 4px; background: ${look.primary}; align-items: center; justify-content: center; }
+  strong { display: block; margin: 16px 0 8px; font-size: 22px; font-family: ${displayFont()}; color: ${look.primary}; }
+  p { margin: 0; color: ${look.muted}; line-height: 1.5; }
 </style></head>
 <body><div class="wrap">
   <div class="top"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(look.name)}</p></div>
@@ -334,15 +346,15 @@ function landingHtml(title: string, blocks: ScriptPart[], look: BrandLook): stri
   return `<!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>${fonts()}
 <style>
-  body { margin: 0; font-family: "Be Vietnam Pro", sans-serif; background: ${look.surface}; color: ${look.ink}; }
-  .hero { display: grid; grid-template-columns: 1fr 1fr; background: ${look.primary}; color: #fff; }
-  .hero div { padding: 56px 48px; }
-  .brand { color: ${look.accent}; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; }
-  h1 { font-size: 48px; line-height: 1.1; margin: 12px 0; }
-  .cta { display: inline-block; background: ${look.accent}; color: ${look.ink}; font-weight: 800; padding: 12px 22px; border-radius: 999px; }
-  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; padding: 36px 48px 56px; }
-  article { background: #fff; border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px ${look.primary}18; }
-  h3 { color: ${look.primary}; margin: 10px 0 6px; }
+  body { margin: 0; font-family: ${bodyFont()}; background: ${look.surface}; color: ${look.ink}; }
+  .hero { display: grid; grid-template-columns: 1.05fr .95fr; min-height: 72vh; background: ${look.primary}; color: #fff; }
+  .hero div:first-child { padding: 64px 56px; display: flex; flex-direction: column; justify-content: center; }
+  .brand { color: ${look.accent}; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; font-size: 11px; margin: 0; }
+  h1 { font-family: ${displayFont()}; font-size: clamp(40px, 5vw, 56px); line-height: 1.02; margin: 16px 0 18px; letter-spacing: -.03em; max-width: 12ch; }
+  .cta { display: inline-block; background: ${look.accent}; color: ${look.ink}; font-weight: 800; padding: 14px 22px; border-radius: 2px; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; margin-top: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: ${look.primary}22; padding: 0; }
+  article { background: #fff; padding: 28px 24px 32px; }
+  h3 { color: ${look.primary}; margin: 12px 0 8px; font-family: ${displayFont()}; }
 </style></head>
 <body>
   <header class="hero">
@@ -358,26 +370,46 @@ function landingHtml(title: string, blocks: ScriptPart[], look: BrandLook): stri
 </body></html>`;
 }
 
-function certificateHtml(title: string, blocks: ScriptPart[], look: BrandLook): string {
-  const who = blocks[0]?.title || title;
-  const why = blocks[0]?.body || blocks[1]?.title || '';
+function certificateHtml(
+  title: string,
+  blocks: ScriptPart[],
+  look: BrandLook,
+  fields: Record<string, string>
+): string {
+  const who = fields.recipient?.trim() || blocks[0]?.title || title;
+  const why =
+    fields.achievement?.trim() ||
+    blocks[0]?.body ||
+    blocks[1]?.title ||
+    '';
+  const date = fields.date?.trim() || '';
+  const signer = fields.signer?.trim() || look.name;
   return `<!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title>${fonts()}
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: ${look.ink}; font-family: "Be Vietnam Pro", serif; }
-  .cert { width: min(920px, 94vw); aspect-ratio: 1.414/1; background: ${look.surface}; color: ${look.ink}; border: 18px solid ${look.primary}; box-shadow: inset 0 0 0 6px ${look.accent}; padding: 48px; text-align: center; }
-  .seal { width: 84px; height: 84px; margin: 0 auto 12px; border-radius: 50%; background: ${look.accent}; display: grid; place-items: center; color: ${look.ink}; font-weight: 800; }
-  p.k { letter-spacing: .2em; text-transform: uppercase; color: ${look.primary}; font-weight: 700; }
-  h1 { font-size: 40px; margin: 8px 0 16px; }
-  h2 { font-size: 34px; color: ${look.primary}; margin: 0 0 12px; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: ${look.ink}; font-family: ${bodyFont()}; }
+  .cert {
+    width: min(960px, 94vw); aspect-ratio: 1.414/1; background: ${look.surface}; color: ${look.ink};
+    border: 14px solid ${look.primary}; outline: 1px solid ${look.accent}; outline-offset: -28px;
+    padding: 56px 64px; text-align: center; display: flex; flex-direction: column; justify-content: center;
+  }
+  .seal { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; border: 2px solid ${look.accent}; display: grid; place-items: center; color: ${look.primary}; }
+  p.k { letter-spacing: .28em; text-transform: uppercase; color: ${look.primary}; font-weight: 700; font-size: 11px; margin: 0; }
+  p.sub { margin: 8px 0 0; color: ${look.muted}; font-size: 14px; }
+  h1 { font-family: ${displayFont()}; font-size: 28px; margin: 20px 0 8px; font-weight: 500; letter-spacing: .04em; }
+  h2 { font-family: ${displayFont()}; font-size: clamp(32px, 4vw, 44px); color: ${look.primary}; margin: 8px 0 16px; line-height: 1.1; }
+  .why { max-width: 48ch; margin: 0 auto; font-size: 16px; line-height: 1.55; color: ${look.muted}; }
+  .meta { margin-top: 36px; display: flex; justify-content: space-between; font-size: 13px; letter-spacing: .04em; }
 </style></head>
 <body>
   <article class="cert">
-    <div class="seal">${svgIcon('graduation', look.ink, 36)}</div>
+    <div class="seal">${svgIcon('graduation', look.primary, 32)}</div>
     <p class="k">${escapeHtml(look.name)}</p>
-    <h1>Giấy khen / chứng chỉ</h1>
+    <p class="sub">Chứng chỉ / giấy khen</p>
+    <h1>${escapeHtml(title)}</h1>
     <h2>${escapeHtml(who)}</h2>
-    <p>${escapeHtml(why)}</p>
+    <p class="why">${escapeHtml(why)}</p>
+    <div class="meta"><span>${escapeHtml(date)}</span><span>${escapeHtml(signer)}</span></div>
   </article>
 </body></html>`;
 }
@@ -408,12 +440,12 @@ export function buildSocialGraphicHtml(input: {
 
   const cards = frames
     .map((part, index) => {
-      const icon = ICON_CYCLE[index % ICON_CYCLE.length];
       return `
     <article class="post">
       <div class="photo">${campusArt(look)}</div>
+      <div class="scrim"></div>
       <div class="body">
-        <p class="brand">${svgIcon(icon, look.accent, 18)} ${escapeHtml(look.name)}</p>
+        <p class="brand">${escapeHtml(look.name)}</p>
         <h2>${escapeHtml(part.title || input.title || `Khung ${index + 1}`)}</h2>
         ${part.body ? `<p class="copy">${escapeHtml(part.body).replace(/\n/g, '<br/>')}</p>` : ''}
         <span class="cta">${escapeHtml(cta)}</span>
@@ -432,24 +464,25 @@ export function buildSocialGraphicHtml(input: {
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh;
-      font-family: "Be Vietnam Pro", "Arial Unicode MS", sans-serif;
-      background: #cbd5e1;
-      display: flex; flex-wrap: wrap; gap: 28px; justify-content: center;
-      align-items: flex-start; padding: 36px 20px 48px;
+      font-family: ${bodyFont()};
+      background: ${look.ink};
+      display: flex; flex-wrap: wrap; gap: 32px; justify-content: center;
+      align-items: flex-start; padding: 40px 20px 56px;
     }
     .post {
       ${frameCss}
-      overflow: hidden; background: ${look.surface}; color: ${look.ink};
-      display: flex; flex-direction: column;
-      box-shadow: 0 18px 50px #0f172a33; border-radius: 4px;
+      position: relative; overflow: hidden; color: #fff;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      box-shadow: 0 24px 60px #0008;
     }
-    .photo { height: 46%; min-height: 160px; background: ${look.primary}; }
+    .photo { position: absolute; inset: 0; }
     .photo .campus { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .body { flex: 1; padding: 22px 22px 20px; display: flex; flex-direction: column; }
-    .brand { margin: 0; display: flex; align-items: center; gap: 8px; color: ${look.primary}; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-    h2 { margin: 10px 0 8px; font-size: clamp(24px, 5vw, 34px); line-height: 1.15; color: ${look.ink}; }
-    .copy { margin: 0; color: ${look.muted}; font-size: 15px; line-height: 1.45; }
-    .cta { margin-top: auto; align-self: flex-start; background: ${look.accent}; color: ${look.ink}; font-size: 14px; font-weight: 800; padding: 10px 16px; border-radius: 999px; }
+    .scrim { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, ${look.ink}f2 100%); }
+    .body { position: relative; z-index: 2; padding: 28px 26px 26px; display: flex; flex-direction: column; }
+    .brand { margin: 0; color: ${look.accent}; font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+    h2 { margin: 12px 0 10px; font-family: ${displayFont()}; font-size: clamp(28px, 6vw, 40px); line-height: 1.05; letter-spacing: -.03em; }
+    .copy { margin: 0 0 18px; color: #e2e8f0; font-size: 15px; line-height: 1.45; max-width: 28ch; }
+    .cta { align-self: flex-start; background: ${look.accent}; color: ${look.ink}; font-size: 12px; font-weight: 800; padding: 10px 16px; letter-spacing: .08em; text-transform: uppercase; }
   </style>
 </head>
 <body>${cards}</body>

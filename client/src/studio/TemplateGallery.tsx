@@ -20,13 +20,6 @@ import {
 import { cn } from '../lib/utils'
 import { useStudio } from './StudioContext'
 
-const FORMAT_MARK: Record<OutputFormat, string> = {
-  image: 'PNG',
-  video: 'MP4',
-  html: 'HTML',
-  pdf: 'PDF',
-}
-
 const FILTER_MARK: Record<string, string> = {
   all: 'ALL',
   social: 'PNG',
@@ -171,7 +164,7 @@ export function TemplateGallery() {
               Không tìm thấy mẫu phù hợp. Thử từ khóa khác hoặc chọn «Tất cả».
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               <AnimatePresence mode="popLayout">
                 {filtered.map((tpl, index) => (
                   <TemplateCard
@@ -235,33 +228,35 @@ function TemplateCard({
       transition={{ duration: 0.2, delay: Math.min(index * 0.02, 0.15) }}
       onClick={onSelect}
       className={cn(
-        'group relative cursor-pointer overflow-hidden rounded-xl border text-left transition-shadow',
+        'group relative grid h-[15.5rem] cursor-pointer grid-rows-2 overflow-hidden rounded-xl border text-left transition-shadow sm:h-[16.5rem]',
         selected
           ? 'border-cyan-400/70 shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_12px_32px_rgba(0,0,0,0.35)]'
           : 'border-slate-800 hover:border-slate-500'
       )}
     >
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative min-h-0 overflow-hidden">
         <ProductThumb item={item} />
         <span
           className={cn(
-            'absolute left-1.5 top-1.5 rounded px-1 py-px text-[8px] font-bold tracking-wide',
+            'absolute left-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wide',
             BADGE_TONE[item.output]
           )}
         >
           {item.outputLabel}
         </span>
         {selected && (
-          <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-cyan-400 text-slate-950">
-            <Check className="size-3" aria-hidden />
+          <span className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full bg-cyan-400 text-slate-950">
+            <Check className="size-3.5" aria-hidden />
           </span>
         )}
       </div>
-      <div className="space-y-0.5 px-2 py-2">
-        <p className="truncate text-[13px] font-semibold text-slate-50">
+      <div className="flex min-h-0 flex-col justify-center gap-1.5 border-t border-slate-800/80 bg-slate-950/80 px-3 py-2.5">
+        <p className="text-[15px] font-semibold leading-snug text-slate-50 sm:text-base">
           {template.name}
         </p>
-        <p className="truncate text-[10px] text-slate-400">{item.purpose}</p>
+        <p className="text-[12px] leading-relaxed text-slate-400 sm:text-[13px]">
+          {item.purpose}
+        </p>
       </div>
     </motion.button>
   )
@@ -275,12 +270,12 @@ function ProductThumb({ item }: { item: StudioCatalogItem }) {
         background: `linear-gradient(155deg, ${item.accent} 0%, #0b1220 68%)`,
       }}
     >
-      <div className="flex items-center gap-2.5 px-3">
+      <span
+        className="flex size-[4.75rem] items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur-[2px] sm:size-[5.25rem]"
+        aria-hidden
+      >
         <ThumbArt id={item.id} ink="#f8fafc" accent={item.accent2} />
-        <span className="text-[34px] font-black leading-none tracking-tighter text-white drop-shadow-md">
-          {FORMAT_MARK[item.output]}
-        </span>
-      </div>
+      </span>
     </div>
   )
 }
@@ -296,8 +291,8 @@ function ThumbArt({
   accent: string
 }) {
   const common = {
-    width: 56,
-    height: 56,
+    width: 72,
+    height: 72,
     viewBox: '0 0 56 56',
     fill: 'none',
     'aria-hidden': true as const,

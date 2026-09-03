@@ -62,6 +62,7 @@ export function FinalExport() {
     finalRender,
     error,
     publishTarget,
+    setPublishTarget,
     driveReady,
   } = useStudio()
 
@@ -91,21 +92,35 @@ export function FinalExport() {
     'lyon-studio-ket-qua'
   const fileName = localUrl ? downloadFileName(localUrl, fileTitle) : ''
 
-  useEffect(() => {
-    if (!canRender || renderLoading || result.resultUrl || error) return
-    if (publishTarget === 'drive' && !driveReady) return
-    if (autoStarted.current) return
-    autoStarted.current = true
-    void finalRender(publishTarget)
-  }, [
-    canRender,
-    renderLoading,
-    result.resultUrl,
-    error,
-    publishTarget,
-    driveReady,
-    finalRender,
-  ])
+  const [downloadBusy, setDownloadBusy] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  async function handleDownload() {
+    if (!localUrl) return
+    setDownloadBusy(true)
+    setDownloadError(null)
+    try {
+      const res = await fetch(localUrl)
+      if (!res.ok) {
+        throw new Error(`Không lấy được file (${res.status}).`)
+      }
+      const blob = await res.blob()
+      const href = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = href
+      a.download = fileName || 'lyon-studio-ket-qua'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.setTimeout(() => URL.revokeObjectURL(href), 2_000)
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error ? err.message : 'Không tải được file.'
+      )
+    } finally {
+      setDownloadBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (renderLoading) autoDownloaded.current = false
@@ -118,9 +133,11 @@ export function FinalExport() {
           {renderLoading
             ? 'Đang xử lý kịch bản…'
             : primary
-              ? 'File hoàn chỉnh đã sẵn sàng'
+              ? result.degraded
+                ? 'Đã xuất bản xem trước — chưa phải file hoàn chỉnh'
+                : 'File hoàn chỉnh đã sẵn sàng'
               : canRender
-                ? 'Sẵn sàng dựng file từ form'
+                ? 'Chọn nơi lưu rồi bấm Xuất file'
                 : 'Chưa đủ kịch bản để xuất'}
         </h2>
         <p className="text-sm text-slate-400">
@@ -137,10 +154,74 @@ export function FinalExport() {
                       ? 'PDF in được từ form. Bấm Tải về khi sẵn sàng.'
                       : 'HTML theo thương hiệu. Bấm Tải về khi sẵn sàng.'
               : canRender
-                ? 'Form đã đủ. Hệ thống bắt đầu dựng file.'
+                ? 'Form đã đủ. Chọn tải về máy hoặc Drive, rồi bấm Xuất file — hệ thống không tự chạy.'
                 : 'Quay lại bước 4, điền từng phần rồi bấm Chạy.'}
         </p>
       </header>
+
+      {!renderLoading && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setPublishTarget('local')}
+            className={cn(
+              'rounded-xl border px-4 py-3 text-left text-sm transition-colors',
+              publishTarget === 'local'
+                ? 'border-cyan-400/50 bg-cyan-500/10 text-cyan-50'
+                : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-600'
+            )}
+          >
+            <span className="block font-semibold">Tải về máy này</span>
+            <span className="mt-0.5 block text-xs text-slate-400">
+              Giữ file trên máy để mở / gửi ngay.
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={!driveReady}
+            onClick={() => setPublishTarget('drive')}
+            className={cn(
+              'rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+              publishTarget === 'drive'
+                ? 'border-cyan-400/50 bg-cyan-500/10 text-cyan-50'
+                : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-600'
+            )}
+          >
+            <span className="block font-semibold">Google Drive</span>
+            <span className="mt-0.5 block text-xs text-slate-400">
+              {driveReady
+                ? 'Tải lên Drive sau khi dựng xong. Bản máy vẫn giữ lại.'
+                : 'Chưa cấu hình Drive trong Cài đặt.'}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {!primary && !renderLoading && (
+        <button
+          type="button"
+          disabled={!canRender || (publishTarget === 'drive' && !driveReady)}
+          onClick={() => {
+            autoStarted.current = true
+            void finalRender(publishTarget)
+          }}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <Clapperboard className="size-4" aria-hidden />
+          Xuất file hoàn chỉnh
+        </button>
+      )}
+
+      {result.degraded && primary && !renderLoading && (
+        <p
+          className="rounded-xl border border-amber-500/30 bg-amber-950/40 px-4 py-3 text-sm text-amber-100"
+          role="status"
+        >
+          Đây là bản HTML (xem được trên trình duyệt). Máy này trước đó chưa
+          thấy Chrome/FFmpeg đúng đường dẫn — hãy xuất lại để lấy MP4 hoặc
+          PDF. Nút Tải vẫn lưu được file HTML.
+        </p>
+      )}
 
       {primary && !renderLoading && (
         <motion.div
@@ -202,14 +283,24 @@ export function FinalExport() {
 
           <div className="flex flex-wrap gap-3">
             {!result.uploadedToDrive && localUrl && (
-              <a
-                href={localUrl}
-                download={fileName}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
+              <button
+                type="button"
+                disabled={downloadBusy}
+                onClick={() => void handleDownload()}
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-cyan-500 px-5 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
               >
-                <Download className="size-4" aria-hidden />
+                {downloadBusy ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Download className="size-4" aria-hidden />
+                )}
                 Tải file hoàn chỉnh
-              </a>
+              </button>
+            )}
+            {downloadError && (
+              <p className="w-full text-xs text-rose-300" role="alert">
+                {downloadError}
+              </p>
             )}
             {(result.uploadedToDrive || driveUrl) && (
               <a

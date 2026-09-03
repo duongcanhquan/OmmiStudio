@@ -74,16 +74,21 @@ export function injectBrandMedia(
 
   if (photos.length) {
     let index = 0;
-    next = next.replace(/<img\b([^>]*)>/gi, (full, attrs: string) => {
-      if (/lyon-logo|logo-svg/i.test(attrs)) return full;
-      if (index >= photos.length) return full;
-      const src = photos[index];
-      index += 1;
-      if (/src="/i.test(attrs)) {
-        return `<img${attrs.replace(/src="[^"]*"/i, `src="${src}"`)}>`;
+    next = next.replace(
+      /<(?:div|figure|section|span)[^>]*(?:data-brand-photo|class="[^"]*(?:figure|cover|hero-preview|hero-art|photo)[^"]*")[^>]*>[\s\S]*?<img\b([^>]*)>/gi,
+      (full, attrs: string) => {
+        if (/lyon-logo|logo-svg/i.test(attrs)) return full;
+        if (index >= photos.length) return full;
+        const src = photos[index];
+        index += 1;
+        return full.replace(/<img\b([^>]*)>/i, (img: string, imgAttrs: string) => {
+          if (/src="/i.test(imgAttrs)) {
+            return `<img${imgAttrs.replace(/src="[^"]*"/i, `src="${src}"`)}>`;
+          }
+          return `<img src="${src}"${imgAttrs}>`;
+        });
       }
-      return `<img src="${src}"${attrs}>`;
-    });
+    );
   }
 
   const photoCss = photos
@@ -144,21 +149,6 @@ export function injectBrandMedia(
       next = next.replace(/<\/body>/i, `${mark}\n</body>`);
     } else {
       next += mark;
-    }
-  }
-
-  if (
-    photos.length &&
-    !/class="card c/i.test(html) &&
-    !/hero-preview|hero-art|class="figure"|class="cover"/i.test(html)
-  ) {
-    const film = `<div class="lyon-film" aria-hidden="true">${photos
-      .map((src) => `<img src="${src}" alt="" />`)
-      .join('')}</div>`;
-    if (/<\/body>/i.test(next)) {
-      next = next.replace(/<\/body>/i, `${film}\n</body>`);
-    } else {
-      next += film;
     }
   }
 

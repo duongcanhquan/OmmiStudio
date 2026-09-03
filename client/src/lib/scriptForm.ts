@@ -28,6 +28,20 @@ function uid(): string {
   return `part-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
+const VIDEO_DURATION_OPTIONS = [
+  { value: '15', label: '15 giây' },
+  { value: '30', label: '30 giây' },
+  { value: '45', label: '45 giây' },
+  { value: '60', label: '1 phút' },
+  { value: '90', label: '1 phút 30' },
+  { value: '120', label: '2 phút' },
+  { value: '180', label: '3 phút' },
+  { value: '300', label: '5 phút' },
+  { value: '600', label: '10 phút' },
+  { value: '1800', label: '30 phút' },
+  { value: '3600', label: '60 phút (tối đa)' },
+]
+
 export function exportKindForType(
   type: TemplateType,
   fieldValues?: Record<string, string>
@@ -51,7 +65,7 @@ export function exportKindForType(
 }
 
 export function maxPartsForType(type: TemplateType): number {
-  if (type === 'video' || type === 'social') return 12
+  if (type === 'video' || type === 'social') return 60
   if (type === 'deck') return 20
   if (
     type === 'poster' ||
@@ -85,6 +99,11 @@ export function partLabel(type: TemplateType, part: ScriptPart, index: number): 
 }
 
 export function defaultParts(type: TemplateType): ScriptPart[] {
+  return [{ ...newPart(type, 0), title: '', body: '', notes: '' }]
+}
+
+/** Seed mẫu cũ — giữ để tham chiếu, không tự điền vào form. */
+export function unusedDemoSeed(type: TemplateType): ScriptPart[] {
   if (type === 'video') {
     return [
       {
@@ -269,13 +288,8 @@ export function metaFieldsForType(
         ? [
             {
               key: 'duration',
-              label: 'Thời lượng gợi ý (giây)',
-              options: [
-                { value: '15', label: '15 giây' },
-                { value: '30', label: '30 giây' },
-                { value: '45', label: '45 giây' },
-                { value: '60', label: '60 giây' },
-              ],
+              label: 'Thời lượng mục tiêu',
+              options: VIDEO_DURATION_OPTIONS,
             },
           ]
         : []),
@@ -295,13 +309,8 @@ export function metaFieldsForType(
       },
       {
         key: 'duration',
-        label: 'Thời lượng gợi ý (giây)',
-        options: [
-          { value: '15', label: '15 giây' },
-          { value: '30', label: '30 giây' },
-          { value: '45', label: '45 giây' },
-          { value: '60', label: '60 giây' },
-        ],
+        label: 'Thời lượng mục tiêu',
+        options: VIDEO_DURATION_OPTIONS,
       },
     ]
   }
@@ -325,7 +334,10 @@ export function metaFieldsForType(
         key: 'paper',
         label: 'Khổ giấy',
         options: [
-          { value: 'A4', label: 'A4' },
+          { value: 'A4', label: 'A4 dọc' },
+          { value: 'A4-landscape', label: 'A4 ngang' },
+          { value: 'A3', label: 'A3 dọc' },
+          { value: 'A3-landscape', label: 'A3 ngang' },
           { value: 'Letter', label: 'Letter' },
         ],
       },
@@ -351,12 +363,7 @@ export function defaultMetaValues(type: TemplateType): Record<string, string> {
   for (const field of metaFieldsForType(type)) {
     if (field.options?.[0]) values[field.key] = field.options[0].value
   }
-  if (!values.title) {
-    if (type === 'video' || type === 'social') values.title = 'Chọn trường cho con'
-    else if (type === 'deck') values.title = 'Định hướng tân sinh viên'
-    else if (type === 'resume') values.title = 'Hồ sơ ứng tuyển'
-    else values.title = 'Ngày hội mở cửa'
-  }
+  if (!values.title) values.title = ''
   return values
 }
 
@@ -399,8 +406,12 @@ export function partsToPrompt(
     `Tiêu đề: ${fieldValues.title || ''}`.trim(),
   ]
   if (fieldValues.aspect) lines.push(`Tỷ lệ khung hình: ${fieldValues.aspect}`)
-  if (fieldValues.duration) lines.push(`Thời lượng: ${fieldValues.duration}`)
-  if (fieldValues.paper) lines.push(`Khổ giấy: ${fieldValues.paper}`)
+  const duration = fieldValues.duration || fieldValues.durationSec
+  if (duration) lines.push(`Thời lượng: ${duration}`)
+  if (fieldValues.paper || fieldValues.size) {
+    lines.push(`Khổ giấy: ${fieldValues.paper || fieldValues.size}`)
+  }
+  if (fieldValues.resolution) lines.push(`Độ phân giải: ${fieldValues.resolution}`)
   lines.push('', 'Nội dung soạn thảo:')
   for (const [index, part] of parts.entries()) {
     if (!partHasContent(part)) continue

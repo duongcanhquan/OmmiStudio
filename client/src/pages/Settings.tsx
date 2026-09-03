@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react'
 import {
+  fetchOllamaModels,
   fetchSettings,
   saveSettings,
   testDriveConnection,
@@ -83,6 +84,8 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
   }>({ apiKeySet: false, serviceAccountSet: false })
   const [nexuRepos, setNexuRepos] = useState<NexuRepoStatus[]>([])
   const [nexuReady, setNexuReady] = useState(false)
+  const [ollamaModels, setOllamaModels] = useState<string[]>([])
+  const [ollamaModelsMsg, setOllamaModelsMsg] = useState<string | null>(null)
 
   const {
     register,
@@ -107,10 +110,15 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
 
   const provider = watch('llm.provider')
   const selectedModel = watch('llm.model')
+  const baseUrl = watch('llm.baseUrl')
   const driveEnabled = watch('drive.enabled')
 
   const providerDef = useMemo(() => getProviderDef(provider), [provider])
-  const modelOptions = providerDef.models
+  const modelOptions = useMemo(() => {
+    if (provider !== 'ollama') return providerDef.models
+    const merged = [...ollamaModels, ...providerDef.models]
+    return Array.from(new Set(merged.filter(Boolean)))
+  }, [provider, providerDef.models, ollamaModels])
   const showBaseUrl =
     Boolean(providerDef.needsBaseUrl) ||
     providerDef.apiStyle === 'openai' ||
@@ -184,12 +192,51 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
     }
   }, [onNotify, applyPublicSettings])
 
+  useEffect(() => {
+    if (provider !== 'ollama') {
+      setOllamaModels([])
+      setOllamaModelsMsg(null)
+      return
+    }
+    let cancelled = false
+    async function loadOllama() {
+      try {
+        const models = await fetchOllamaModels(
+          baseUrl || 'http://127.0.0.1:11434/v1'
+        )
+        if (cancelled) return
+        setOllamaModels(models)
+        setOllamaModelsMsg(
+          models.length > 0
+            ? `Đã cài trên máy: ${models.join(', ')}`
+            : 'Ollama chạy nhưng chưa có model nào.'
+        )
+      } catch (err) {
+        if (cancelled) return
+        setOllamaModels([])
+        setOllamaModelsMsg(
+          err instanceof Error
+            ? err.message
+            : 'Không đọc được danh sách model Ollama.'
+        )
+      }
+    }
+    void loadOllama()
+    return () => {
+      cancelled = true
+    }
+  }, [provider, baseUrl])
+
   function onProviderChange(next: LlmProvider) {
     setValue('llm.provider', next, { shouldDirty: true })
     const def = getProviderDef(next)
     const current = getValues('llm.model')
-    if (!def.models.includes(current)) {
-      setValue('llm.model', def.models[0], { shouldDirty: true })
+    const options =
+      next === 'ollama'
+        ? Array.from(new Set([...ollamaModels, ...def.models]))
+        : def.models
+    if (!options.includes(current)) {
+      setValue('llm.model', options[0] ?? def.models[0], { shouldDirty: true })
     }
     setValue('llm.baseUrl', def.defaultBaseUrl, { shouldDirty: true })
   }
@@ -453,6 +500,9 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                   {modelOptions.map((m) => (
                     <option key={m} value={m}>
                       {m}
+                      {provider === 'ollama' && ollamaModels.includes(m)
+                        ? ' · đã cài'
+                        : ''}
                     </option>
                   ))}
                   {selectedModel && !modelOptions.includes(selectedModel) && (
@@ -462,7 +512,10 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                   )}
                 </select>
                 <p className="text-xs text-zinc-500">
-                  Có thể chọn model có sẵn hoặc giữ model tùy chỉnh đã lưu.
+                  {provider === 'ollama'
+                    ? ollamaModelsMsg ||
+                      'Chọn model đã pull trên Ollama (vd. llama3.1:8b).'
+                    : 'Có thể chọn model có sẵn hoặc giữ model tùy chỉnh đã lưu.'}
                 </p>
               </div>
 

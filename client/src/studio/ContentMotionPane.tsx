@@ -115,6 +115,23 @@ export function ContentMotionPane() {
 
   function setField(key: string, value: string) {
     const fieldValues = { ...selection.fieldValues, [key]: value }
+    const aspectPixels: Record<string, string> = {
+      '9:16': '1080x1920',
+      '16:9': '1920x1080',
+      '1:1': '1080x1080',
+      '4:5': '1080x1350',
+      '3:4': '1080x1440',
+      '4:3': '1440x1080',
+    }
+    if (key === 'aspect' && aspectPixels[value]) {
+      fieldValues.size = aspectPixels[value]
+    }
+    if (key === 'durationSec') fieldValues.duration = value
+    if (key === 'duration') fieldValues.durationSec = value
+    if (key === 'size' && /^(A[345]|Letter)/i.test(value)) {
+      fieldValues.paper = value
+    }
+    if (key === 'paper') fieldValues.size = value
     patchSelection({
       fieldValues,
       ...(key === 'outputFormat'
@@ -240,6 +257,26 @@ export function ContentMotionPane() {
                   </p>
                   <p className="mt-1 text-slate-400">{help.intro}</p>
                 </div>
+
+                {settingFields.length > 0 && (
+                  <details
+                    open
+                    className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3"
+                  >
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Cấu hình thiết kế — khổ, thời lượng, số cảnh
+                    </summary>
+                    <div className="mt-3">
+                      <RequiredFieldsBlock
+                        fields={settingFields}
+                        values={selection.fieldValues}
+                        missingKeys={missingKeys}
+                        onChange={setField}
+                        title=""
+                      />
+                    </div>
+                  </details>
+                )}
 
                 <ScriptPartsEditor
                   type={templateType}

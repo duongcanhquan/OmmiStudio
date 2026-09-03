@@ -90,6 +90,21 @@ export function parseParts(raw: unknown): ScriptPart[] {
   return parts;
 }
 
+export function durationHintFromFields(
+  fieldValues?: Record<string, string>
+): number | undefined {
+  const raw = fieldValues?.duration?.trim() || fieldValues?.durationSec?.trim();
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/** Per-scene seconds: honor user total length, keep each beat watchable. */
+export function clampSceneDuration(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds <= 0) return 5;
+  return Math.min(90, Math.max(3, seconds));
+}
+
 export function partsToVideoScript(
   title: string,
   parts: ScriptPart[],
@@ -100,7 +115,7 @@ export function partsToVideoScript(
   );
   const per =
     usable.length > 0 && durationHint && durationHint > 0
-      ? Math.min(8, Math.max(4, Math.round(durationHint / usable.length)))
+      ? clampSceneDuration(Math.round(durationHint / usable.length))
       : 5;
   const motions = ['fade-in', 'slide-up', 'zoom-in', 'ken-burns'];
   return {

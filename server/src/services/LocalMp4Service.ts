@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
+import ffmpegStatic from 'ffmpeg-static';
 import { bareHex, resolveBrandLook } from './brandLook';
 import { toScreenCopy } from './kineticCopy';
 import type { VideoScript } from './LLMService';
@@ -24,10 +25,13 @@ function commandExists(bin: string): boolean {
 
 export function resolveFfmpegPath(): string | null {
   if (commandExists('ffmpeg')) return 'ffmpeg';
+  if (ffmpegStatic && fs.existsSync(ffmpegStatic)) return ffmpegStatic;
   const candidates = [
-    path.resolve(__dirname, '../../bin/ffmpeg'),
+    path.resolve(__dirname, '../node_modules/ffmpeg-static/ffmpeg'),
     path.resolve(__dirname, '../../node_modules/ffmpeg-static/ffmpeg'),
     path.resolve(__dirname, '../../../node_modules/ffmpeg-static/ffmpeg'),
+    path.resolve(__dirname, '../../bin/ffmpeg'),
+    'C:\\ffmpeg\\bin\\ffmpeg.exe',
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
@@ -49,11 +53,30 @@ export function parseVideoSize(prompt: string): { w: number; h: number } {
   const match = prompt.match(/Tỷ lệ khung hình:\s*([0-9]+):([0-9]+)/i);
   const w = Number(match?.[1]);
   const h = Number(match?.[2]);
-  if (w === 9 && h === 16) return { w: 1080, h: 1920 };
-  if (w === 1 && h === 1) return { w: 1080, h: 1080 };
-  if (w === 4 && h === 5) return { w: 1080, h: 1350 };
-  if (w === 21 && h === 9) return { w: 1920, h: 822 };
-  return { w: 1920, h: 1080 };
+  let size = { w: 1920, h: 1080 };
+  if (w === 9 && h === 16) size = { w: 1080, h: 1920 };
+  else if (w === 1 && h === 1) size = { w: 1080, h: 1080 };
+  else if (w === 4 && h === 5) size = { w: 1080, h: 1350 };
+  else if (w === 3 && h === 4) size = { w: 1080, h: 1440 };
+  else if (w === 21 && h === 9) size = { w: 1920, h: 822 };
+  else if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+    size = w >= h ? { w: 1920, h: Math.round((1920 * h) / w) } : { w: 1080, h: Math.round((1080 * h) / w) };
+  }
+
+  const res = prompt.match(/Độ phân giải:\s*([^\n]+)/i)?.[1]?.toLowerCase() ?? '';
+  if (/4k|2160/.test(res)) {
+    const scale = 2160 / Math.max(size.w, size.h);
+    return { w: Math.round(size.w * scale), h: Math.round(size.h * scale) };
+  }
+  if (/1440|2k/.test(res)) {
+    const scale = 1440 / Math.max(size.w, size.h);
+    return { w: Math.round(size.w * scale), h: Math.round(size.h * scale) };
+  }
+  if (/720/.test(res)) {
+    const scale = 720 / Math.max(size.w, size.h);
+    return { w: Math.round(size.w * scale), h: Math.round(size.h * scale) };
+  }
+  return size;
 }
 
 function resolveLook(brandId?: string, prompt?: string) {
@@ -188,7 +211,7 @@ async function renderSceneClip(input: {
   index: number;
   total: number;
 }): Promise<void> {
-  const duration = Math.max(4, Math.min(8, input.duration || 5));
+  const duration = Math.max(3, Math.min(90, input.duration || 5));
   const maxChars = input.size.w >= input.size.h ? 16 : 11;
   const textFile = path.join(input.workDir, `scene_${input.sceneId}.txt`);
   const brandFile = path.join(input.workDir, `brand_${input.sceneId}.txt`);
@@ -481,7 +504,7 @@ export async function renderLocalMp4(input: {
   ]);
 
   const totalSeconds = scenes.reduce(
-    (sum, scene) => sum + Math.max(4, Math.min(8, scene.duration || 5)),
+    (sum, scene) => sum + Math.max(3, Math.min(90, scene.duration || 5)),
     0
   );
   try {

@@ -204,14 +204,7 @@ function kineticLayer(
   look: BrandLook,
   scenes?: VideoSceneCopy[]
 ): string {
-  const tickerBits = [
-    brand,
-    title,
-    ...parts
-      .map((part) => part.title?.trim() || part.body?.trim() || '')
-      .filter(Boolean)
-      .slice(0, 6),
-  ];
+  const tickerBits = [brand, title].filter(Boolean);
   const ticker = escapeHtml(tickerBits.join('  ·  '));
   const sceneJson = JSON.stringify(
     (scenes?.length
@@ -220,7 +213,7 @@ function kineticLayer(
     ).map((scene) => ({
       title: scene.title || title,
       body: scene.body || '',
-      duration: Math.max(3, Math.min(8, scene.duration || 5)),
+      duration: Math.max(3, Math.min(90, scene.duration || 5)),
     }))
   );
   return `
@@ -237,10 +230,10 @@ function kineticLayer(
   .z-10 { z-index: 10; }
   .text-center { text-align: center; }
   .lyon-ticker {
-    position: absolute; left: 0; right: 0; bottom: 6%;
+    position: absolute; left: 8%; right: 8%; bottom: 8%;
     overflow: hidden; white-space: nowrap; z-index: 30;
-    font-size: clamp(13px, 1.4vw, 18px); letter-spacing: 0.14em;
-    text-transform: uppercase; opacity: 0.78; pointer-events: none;
+    font-size: clamp(11px, 1.1vw, 14px); letter-spacing: 0.22em;
+    text-transform: uppercase; opacity: 0.55; pointer-events: none;
     color: ${look.text};
   }
   .lyon-ticker-inner {
@@ -263,10 +256,14 @@ function kineticLayer(
   }
   @keyframes lyon-type { to { width: 100%; } }
   @keyframes lyon-caret { 50% { border-color: transparent; } }
-  .lyon-run { display: inline-block; animation: lyon-run 7s ease-in-out infinite alternate; }
+  .lyon-run { display: inline-block; animation: lyon-run 8s ease-in-out infinite alternate; }
   @keyframes lyon-run {
-    from { transform: translateX(4%); }
-    to { transform: translateX(-4%); }
+    from { transform: translateY(0) scale(1); }
+    to { transform: translateY(-2%) scale(1.03); }
+  }
+  body::after {
+    content: ""; pointer-events: none; position: fixed; inset: 0; z-index: 40;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.35) 100%);
   }
 </style>
 <div class="lyon-ticker" aria-hidden="true"><span class="lyon-ticker-inner">${ticker}  ·  ${ticker}</span></div>
@@ -293,8 +290,16 @@ document.addEventListener('DOMContentLoaded', function () {
     i += 1;
   }
   paint();
-  var wait = (scenes[0] && scenes[0].duration ? scenes[0].duration : 5) * 1000;
-  if (scenes.length > 1) setInterval(paint, wait);
+  function next() {
+    if (scenes.length < 2) return;
+    var current = scenes[(i - 1 + scenes.length) % scenes.length];
+    var wait = (current && current.duration ? current.duration : 5) * 1000;
+    setTimeout(function () {
+      paint();
+      next();
+    }, wait);
+  }
+  next();
 });
 </script>`;
 }

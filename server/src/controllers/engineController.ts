@@ -26,6 +26,7 @@ export interface GenerateBody {
   templateId?: string;
   templateType?: StudioTemplateType;
   layoutId?: string;
+  layoutKind?: string;
   brandId?: string;
   /** Preferred motion-anything recipe / motionType */
   motionId?: string;
@@ -40,15 +41,44 @@ export interface GenerateBody {
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
 const VOICE_REGIONS: VietnameseVoiceRegion[] = ['north', 'south'];
 
+const ASPECT_PIXELS: Record<string, string> = {
+  '9:16': '1080x1920',
+  '16:9': '1920x1080',
+  '1:1': '1080x1080',
+  '4:5': '1080x1350',
+  '3:4': '1080x1440',
+  '4:3': '1440x1080',
+  '21:9': '1920x822',
+};
+
 function normalizeFieldValuesForPipeline(
   input?: Record<string, string>
 ): Record<string, string> | undefined {
   if (!input || typeof input !== 'object') return undefined;
   const next = { ...input };
 
-  // Studio UI dùng `durationSec` (thời lượng mục tiêu), nhưng pipeline đọc `duration`.
-  if (!next.duration?.trim() && next.durationSec?.trim()) {
-    next.duration = next.durationSec;
+  const durationRaw = next.duration?.trim() || next.durationSec?.trim() || '';
+  if (durationRaw) {
+    next.duration = durationRaw;
+    next.durationSec = durationRaw;
+  }
+
+  const paperish = next.paper?.trim() || '';
+  const sizeRaw = next.size?.trim() || '';
+  if (!paperish && /^(A[345]|Letter)/i.test(sizeRaw)) {
+    next.paper = sizeRaw;
+  }
+  if (!sizeRaw && paperish) {
+    next.size = paperish;
+  }
+
+  const aspect = next.aspect?.trim() || '';
+  if (aspect && ASPECT_PIXELS[aspect]) {
+    const derived = ASPECT_PIXELS[aspect];
+    const sizeIsPixels = /^\d+x\d+$/i.test(next.size ?? '');
+    if (!sizeIsPixels) {
+      next.size = derived;
+    }
   }
 
   return next;
@@ -66,6 +96,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
     templateId,
     templateType,
     layoutId,
+    layoutKind,
     brandId,
     motionId,
     publishTarget = 'local',
@@ -122,6 +153,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
       templateId: typeof templateId === 'string' ? templateId : undefined,
       templateType: typeof templateType === 'string' ? templateType : undefined,
       layoutId: typeof layoutId === 'string' ? layoutId : undefined,
+      layoutKind: typeof layoutKind === 'string' ? layoutKind : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
@@ -154,9 +186,11 @@ export async function generate(req: Request, res: Response): Promise<void> {
       script: result.script,
       cliLogs: result.cliLogs,
       degraded: result.degraded,
-      message: result.uploadedToDrive
-        ? 'File hoàn chỉnh đã lên Google Drive.'
-        : 'File hoàn chỉnh đã sẵn sàng. Bấm Tải về khi bạn muốn.'
+      message: result.degraded
+        ? 'Xuất được bản HTML. MP4/PDF cần Chrome + FFmpeg trên máy — hệ thống sẽ thử lại khi bạn bấm Xuất. Vẫn có thể tải file HTML.'
+        : result.uploadedToDrive
+          ? 'File hoàn chỉnh đã lên Google Drive.'
+          : 'File hoàn chỉnh đã sẵn sàng. Bấm Tải về khi bạn muốn.'
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Lỗi không xác định';
@@ -182,6 +216,7 @@ export async function generatePreview(
     templateId,
     templateType,
     layoutId,
+    layoutKind,
     brandId,
     motionId,
     fieldValues,
@@ -220,6 +255,7 @@ export async function generatePreview(
       templateId: typeof templateId === 'string' ? templateId : undefined,
       templateType: typeof templateType === 'string' ? templateType : undefined,
       layoutId: typeof layoutId === 'string' ? layoutId : undefined,
+      layoutKind: typeof layoutKind === 'string' ? layoutKind : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
@@ -323,13 +359,13 @@ export async function normalizeScript(
       fieldValues && typeof fieldValues === 'object' ? fieldValues : {};
     const fallbackParts = parseParts(parts);
 
-    res.status(200).json({
-      success: true,
+    res.status(422).json({
+      success: false,
       title: fallbackFieldValues.title ?? '',
       fieldValues: fallbackFieldValues,
       parts: fallbackParts,
-      message:
-        `AI không điền form được — dùng dữ liệu hiện tại để tiếp tục. ` +
+      error:
+        `AI không điền form được. Giữ dữ liệu hiện tại và điền tay nếu cần. ` +
         `Chi tiết: ${message}`,
     });
   }

@@ -65,6 +65,7 @@ export interface GeneratePayload {
   templateId?: string
   templateType?: TemplateType
   layoutId?: string
+  layoutKind?: string
   brandId?: string
   motionId?: string
   publishTarget?: PublishTarget
@@ -133,6 +134,7 @@ export async function generateContent(
     templateId: payload.templateId,
     templateType: payload.templateType,
     layoutId: payload.layoutId,
+    layoutKind: payload.layoutKind,
     brandId: payload.brandId,
     motionId: payload.motionId,
     publishTarget: payload.publishTarget ?? 'local',
@@ -153,6 +155,7 @@ export async function generatePreview(
     templateId: payload.templateId,
     templateType: payload.templateType,
     layoutId: payload.layoutId,
+    layoutKind: payload.layoutKind,
     brandId: payload.brandId,
     motionId: payload.motionId,
     fieldValues: payload.fieldValues,

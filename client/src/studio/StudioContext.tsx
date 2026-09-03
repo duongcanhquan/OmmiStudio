@@ -59,6 +59,7 @@ export interface StudioResult {
   uploadedToDrive: boolean
   message: string | null
   previewUrl: string | null
+  degraded?: boolean
 }
 
 export interface StudioContextValue {

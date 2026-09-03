@@ -212,6 +212,11 @@ export function getMissingRequiredFields(
       required: true,
     })
   }
+  for (const field of REQUIRED_FIELDS_BY_TYPE[type] ?? []) {
+    if (!isFieldRequired(field)) continue
+    if (field.key === 'title') continue
+    if (!values[field.key]?.trim()) missing.push(field)
+  }
   return missing
 }
 
@@ -1248,9 +1253,10 @@ export function buildStudioPrompt(input: {
     '',
     '=== ĐẦU RA ===',
     'Trả JSON kịch bản hình đúng schema hệ thống (scenes[]).',
-    'Mọi chữ trong visualText và voiceoverText phải là tiếng Việt có dấu — không tiếng Anh, không tiếng Trung.',
-    'Tuân thủ chính xác: thời lượng (tối đa 60 phút), số cảnh/block, kích thước, tỷ lệ, phong cách trong form.',
-    'Video dài: chia chương/block; tổng thời lượng các cảnh ≈ thời lượng mục tiêu.',
+    'visualText = tiêu đề thiết kế (3–8 từ). voiceoverText = lời đọc, đúng brief.',
+    'Không bịa số liệu / tên / ngày. Không tiếng Anh, không tiếng Trung.',
+    'Tuân thủ chính xác: thời lượng, số cảnh, kích thước, tỷ lệ, phong cách trong form.',
+    'Video dài: chia chương; tổng thời lượng các cảnh ≈ thời lượng mục tiêu.',
     'Không markdown ngoài JSON.'
   )
 
