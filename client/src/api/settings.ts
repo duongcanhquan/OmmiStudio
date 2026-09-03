@@ -14,6 +14,11 @@ export interface PublicAppSettings {
     apiKeySet: boolean
     model: string
     baseUrl: string
+    fallbackProvider?: LlmProvider
+    fallbackApiKey?: string
+    fallbackApiKeySet?: boolean
+    fallbackModel?: string
+    fallbackBaseUrl?: string
   }
   drive: {
     enabled: boolean
@@ -32,6 +37,10 @@ export interface SettingsFormValues {
     apiKey: string
     model: string
     baseUrl: string
+    fallbackProvider?: LlmProvider
+    fallbackApiKey?: string
+    fallbackModel?: string
+    fallbackBaseUrl?: string
   }
   drive: {
     enabled: boolean

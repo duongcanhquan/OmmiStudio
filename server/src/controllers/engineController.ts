@@ -12,6 +12,7 @@ import type { BrandPaletteInput } from '../services/brandLook';
 import { parseBrandMedia } from '../services/BrandMediaService';
 import { resolveSkillBind } from '../config/studio-layouts';
 import { skillBriefForTemplate } from '../services/HtmlSkillService';
+import { externalAssetService } from '../services/ExternalAssetService';
 
 export interface RenderHtmlBody {
   content: string;
@@ -38,6 +39,20 @@ export interface GenerateBody {
 
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
 const VOICE_REGIONS: VietnameseVoiceRegion[] = ['north', 'south'];
+
+function normalizeFieldValuesForPipeline(
+  input?: Record<string, string>
+): Record<string, string> | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  const next = { ...input };
+
+  // Studio UI dùng `durationSec` (thời lượng mục tiêu), nhưng pipeline đọc `duration`.
+  if (!next.duration?.trim() && next.durationSec?.trim()) {
+    next.duration = next.durationSec;
+  }
+
+  return next;
+}
 
 /**
  * POST /api/v1/generate
@@ -90,6 +105,16 @@ export async function generate(req: Request, res: Response): Promise<void> {
     publishTarget === 'drive' ? 'drive' : ('local' as 'local' | 'drive');
 
   try {
+    const parsedBrandMedia = parseBrandMedia(brandMedia);
+    const enrichedBrandMedia = await externalAssetService.enrichBrandMediaFromPrompt({
+      brandMedia: parsedBrandMedia,
+      templateType: templateType && typeof templateType === 'string' ? templateType : undefined,
+      prompt: hasPrompt ? prompt!.trim() : '',
+      fieldValues: normalizeFieldValuesForPipeline(
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined
+      ),
+    });
+
     const result = await runGeneratePipeline({
       prompt: hasPrompt ? prompt!.trim() : '',
       type,
@@ -103,12 +128,13 @@ export async function generate(req: Request, res: Response): Promise<void> {
           ? motionId.trim()
           : undefined,
       publishTarget: target,
-      fieldValues:
-        fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined,
+      fieldValues: normalizeFieldValuesForPipeline(
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined
+      ),
       parts: parsedParts,
       brandPalette:
         brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
-      brandMedia: parseBrandMedia(brandMedia),
+      brandMedia: enrichedBrandMedia,
     });
 
     res.status(200).json({
@@ -177,6 +203,16 @@ export async function generatePreview(
     : 'slide';
 
   try {
+    const parsedBrandMedia = parseBrandMedia(brandMedia);
+    const enrichedBrandMedia = await externalAssetService.enrichBrandMediaFromPrompt({
+      brandMedia: parsedBrandMedia,
+      templateType: templateType && typeof templateType === 'string' ? templateType : undefined,
+      prompt: prompt?.trim() ?? '',
+      fieldValues: normalizeFieldValuesForPipeline(
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined
+      ),
+    });
+
     const result = await runPreviewPipeline({
       prompt: prompt.trim(),
       type: resolvedType,
@@ -190,11 +226,13 @@ export async function generatePreview(
           ? motionId.trim()
           : undefined,
       fieldValues:
-        fieldValues && typeof fieldValues === 'object' ? fieldValues : {},
+        normalizeFieldValuesForPipeline(
+          fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined
+        ) ?? {},
       parts: parseParts(parts),
       brandPalette:
         brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
-      brandMedia: parseBrandMedia(brandMedia),
+      brandMedia: enrichedBrandMedia,
     });
 
     res.status(200).json({
@@ -280,9 +318,19 @@ export async function normalizeScript(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     console.error('[script/normalize]', message);
-    res.status(400).json({
-      success: false,
-      error: message,
+    // Linh hoạt: không chặn workflow khi AI không điền được form.
+    const fallbackFieldValues =
+      fieldValues && typeof fieldValues === 'object' ? fieldValues : {};
+    const fallbackParts = parseParts(parts);
+
+    res.status(200).json({
+      success: true,
+      title: fallbackFieldValues.title ?? '',
+      fieldValues: fallbackFieldValues,
+      parts: fallbackParts,
+      message:
+        `AI không điền form được — dùng dữ liệu hiện tại để tiếp tục. ` +
+        `Chi tiết: ${message}`,
     });
   }
 }

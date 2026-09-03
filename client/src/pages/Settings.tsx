@@ -160,6 +160,10 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
         baseUrl:
           settings.llm.baseUrl ||
           getProviderDef(settings.llm.provider).defaultBaseUrl,
+        fallbackProvider: settings.llm.fallbackProvider ?? ('' as LlmProvider),
+        fallbackApiKey: settings.llm.fallbackApiKeySet ? (settings.llm.fallbackApiKey ?? '') : '',
+        fallbackModel: settings.llm.fallbackModel ?? '',
+        fallbackBaseUrl: settings.llm.fallbackBaseUrl ?? '',
       },
       drive: {
         enabled: settings.drive.enabled,
@@ -472,6 +476,75 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                 {testMsg?.target === 'llm' && (
                   <StatusPill ok={testMsg.ok} text={testMsg.text} />
                 )}
+              </div>
+            </section>
+
+            {/* ─── Fallback Provider ─────────────────────────── */}
+            <section className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+              <header>
+                <h2 className="text-lg font-semibold text-zinc-50">
+                  Nhà cung cấp dự phòng (Fallback)
+                </h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Khi nhà cung cấp chính thất bại hoặc quá chậm, hệ thống tự động chuyển sang provider này.
+                  Ví dụ: dùng Ollama làm chính, OpenAI/Gemini làm dự phòng cho tác vụ phức tạp.
+                </p>
+              </header>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-200">
+                  Nhà cung cấp dự phòng
+                  <span className="ml-1 font-normal text-zinc-500">(tuỳ chọn)</span>
+                </label>
+                <select
+                  className={fieldClass}
+                  {...register('llm.fallbackProvider')}
+                >
+                  <option value="">— Không dùng fallback —</option>
+                  {LLM_PROVIDERS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-200">
+                  Khóa API dự phòng
+                  <span className="ml-1 font-normal text-zinc-500">(tuỳ chọn)</span>
+                </label>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Dán API key của provider dự phòng"
+                  className={fieldClass}
+                  {...register('llm.fallbackApiKey')}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-200">
+                    Mô hình dự phòng
+                  </label>
+                  <input
+                    className={fieldClass}
+                    placeholder="vd: gpt-4o-mini, gemini-1.5-flash"
+                    {...register('llm.fallbackModel')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-zinc-200">
+                    Base URL dự phòng
+                    <span className="ml-1 font-normal text-zinc-500">(nếu cần)</span>
+                  </label>
+                  <input
+                    className={cn(fieldClass, 'font-mono text-xs')}
+                    placeholder="https://api.openai.com/v1"
+                    {...register('llm.fallbackBaseUrl')}
+                  />
+                </div>
               </div>
             </section>
           )}

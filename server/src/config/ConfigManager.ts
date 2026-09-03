@@ -18,6 +18,11 @@ export interface AppSettings {
     model: string;
     /** OpenAI-compatible / Anthropic / custom API root */
     baseUrl: string;
+    /** Fallback provider when primary fails (e.g. "gemini", "openai") */
+    fallbackProvider?: LlmProvider;
+    fallbackApiKey?: string;
+    fallbackModel?: string;
+    fallbackBaseUrl?: string;
   };
   drive: {
     enabled: boolean;
@@ -38,6 +43,11 @@ export interface PublicAppSettings {
     apiKeySet: boolean;
     model: string;
     baseUrl: string;
+    fallbackProvider?: LlmProvider;
+    fallbackApiKey?: string;
+    fallbackApiKeySet?: boolean;
+    fallbackModel?: string;
+    fallbackBaseUrl?: string;
   };
   drive: {
     enabled: boolean;
@@ -264,6 +274,10 @@ export class ConfigManager {
       merged.llm.apiKey = current.llm.apiKey;
     }
 
+    if (patch.llm?.fallbackApiKey !== undefined && isMaskedSecret(patch.llm.fallbackApiKey ?? '')) {
+      merged.llm.fallbackApiKey = current.llm.fallbackApiKey ?? '';
+    }
+
     if (
       patch.drive?.serviceAccountJson !== undefined &&
       isMaskedSecret(patch.drive.serviceAccountJson)
@@ -279,6 +293,7 @@ export class ConfigManager {
     const keySet = Boolean(s.llm.apiKey.trim());
     const saSet = Boolean(s.drive.serviceAccountJson.trim());
     const provider = normalizeProvider(s.llm.provider);
+    const fbKeySet = Boolean(s.llm.fallbackApiKey?.trim());
     return {
       llm: {
         provider,
@@ -286,6 +301,11 @@ export class ConfigManager {
         apiKeySet: keySet,
         model: s.llm.model,
         baseUrl: s.llm.baseUrl || getProviderDef(provider).defaultBaseUrl,
+        fallbackProvider: s.llm.fallbackProvider,
+        fallbackApiKey: fbKeySet ? maskSecret(s.llm.fallbackApiKey!) : '',
+        fallbackApiKeySet: fbKeySet,
+        fallbackModel: s.llm.fallbackModel,
+        fallbackBaseUrl: s.llm.fallbackBaseUrl,
       },
       drive: {
         enabled: s.drive.enabled,

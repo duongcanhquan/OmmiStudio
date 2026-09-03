@@ -336,6 +336,43 @@ async function chatAnthropic(opts: {
   return joined;
 }
 
+/**
+ * Try primary provider; if it throws, automatically retry with the configured
+ * fallback provider (if any). This enables e.g. Ollama → OpenAI graceful degradation.
+ */
+async function completeChatWithFallback(opts: {
+  system: string;
+  user: string;
+  preferJson?: boolean;
+}): Promise<{ text: string; providerLabel: string }> {
+  try {
+    return await completeChat(opts);
+  } catch (primaryErr) {
+    const cfg = getLlmConfig();
+    const fallbackProvider = cfg.fallbackProvider?.trim();
+    if (!fallbackProvider) throw primaryErr;
+
+    const fallbackDef = getProviderDef(fallbackProvider);
+    const fallbackKey = cfg.fallbackApiKey?.trim() || '';
+    const keyOptional = Boolean(fallbackDef.keyOptional);
+    if (!keyOptional && !fallbackKey) throw primaryErr;
+
+    console.warn(
+      `[LLMService] Primary provider failed — falling back to ${fallbackDef.label}. Error: ${
+        primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
+      }`
+    );
+
+    return await completeChat({
+      ...opts,
+      provider: fallbackProvider,
+      apiKey: fallbackKey,
+      model: cfg.fallbackModel?.trim() || fallbackDef.models[0],
+      baseUrl: cfg.fallbackBaseUrl?.trim() || fallbackDef.defaultBaseUrl,
+    });
+  }
+}
+
 async function completeChat(opts: {
   provider?: string;
   apiKey?: string;
@@ -663,7 +700,19 @@ export async function resolveVideoScript(
     return local;
   }
   try {
-    return await generateVideoScript(llmPrompt ?? userPrompt, contentType);
+    // Keep Studio responsive: nếu LLM quá chậm/treo thì fallback sang storyboard local
+    const timeoutMs = 25_000;
+    const llmPromise = generateVideoScript(llmPrompt ?? userPrompt, contentType);
+    const timed = await Promise.race([
+      llmPromise,
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(
+          () => reject(new Error(`LLM timeout after ${timeoutMs}ms`)),
+          timeoutMs
+        )
+      ),
+    ]);
+    return timed;
   } catch {
     return local;
   }
@@ -699,7 +748,7 @@ export async function generateVideoScript(
   let rawText = '';
   let providerLabel = 'LLM';
   try {
-    const result = await completeChat({
+    const result = await completeChatWithFallback({
       system,
       user,
       preferJson: true,
@@ -780,7 +829,7 @@ export async function normalizeStudioForm(input: {
     .filter(Boolean)
     .join('\n\n');
 
-  const result = await completeChat({ system, user, preferJson: true });
+  const result = await completeChatWithFallback({ system, user, preferJson: true });
   if (!result.text?.trim()) {
     throw new Error(`${result.providerLabel} không trả về form.`);
   }
