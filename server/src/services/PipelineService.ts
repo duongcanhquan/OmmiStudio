@@ -25,8 +25,20 @@ import {
 import { workspaceService } from './WorkspaceService';
 import { saveProjectMeta } from './ProjectService';
 import { renderLocalMp4 } from './LocalMp4Service';
-import { buildBrandedHtml } from './BrandDocumentService';
+import { renderSocialPngs } from './LocalPngService';
+import {
+  buildBrandedHtml,
+  buildSocialGraphicHtml,
+  type BrandPaletteInput,
+} from './BrandDocumentService';
+import { fillStudioSkillHtml } from './HtmlSkillService';
 import { renderBrandedPdf } from './PdfService';
+import {
+  hasChromeCapture,
+  printHtmlToPdf,
+  screenshotHtml,
+} from './ChromeCaptureService';
+import { parseSocialSize } from './LocalPngService';
 import {
   exportKindForType,
   parseParts,
@@ -58,6 +70,7 @@ export interface PipelineOptions {
   templateType?: string;
   fieldValues?: Record<string, string>;
   parts?: ScriptPart[];
+  brandPalette?: BrandPaletteInput | null;
 }
 
 export interface PipelineResult {
@@ -216,7 +229,7 @@ function buildBaseHtml(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(script.title || 'OmniStudio Video')}</title>
+  <title>${escapeHtml(script.title || 'LYON Studio Video')}</title>
   <script id="omnistudio-script" type="application/json">${JSON.stringify({
     ...script,
     templateId,
@@ -232,7 +245,7 @@ function buildBaseHtml(
 </head>
 <body>
   <header class="meta">
-    <strong>OmniStudio</strong> · ${escapeHtml(script.title || 'Chưa đặt tên')}
+    <strong>LYON Studio</strong> · ${escapeHtml(script.title || 'Chưa đặt tên')}
     ${templateId ? ` · mẫu: ${escapeHtml(templateId)}` : ''}
     ${brandId ? ` · thương hiệu: ${escapeHtml(brandId)}` : ''}
   </header>
@@ -491,7 +504,7 @@ export async function runVideoPipeline(
     keepWorkspace = true;
 
     await saveProjectMeta(workspacePath, {
-      title: script.title || fieldValues.title || effectivePrompt.slice(0, 80) || 'Video OmniStudio',
+      title: script.title || fieldValues.title || effectivePrompt.slice(0, 80) || 'Video LYON Studio',
       type: 'video',
       kind: 'final',
       templateId,
@@ -537,8 +550,18 @@ export async function runVideoPipeline(
 export async function runPreviewPipeline(
   options: PipelineOptions
 ): Promise<PreviewPipelineResult> {
-  const { prompt, type, templateId, brandId, preferredMotion } = options;
-  if (!prompt?.trim()) {
+  const {
+    prompt,
+    type,
+    templateId,
+    brandId,
+    preferredMotion,
+    templateType,
+    fieldValues = {},
+    parts: rawParts,
+    brandPalette,
+  } = options;
+  if (!prompt?.trim() && parseParts(rawParts).length === 0) {
     throw new Error('runPreviewPipeline: prompt is required.');
   }
 
@@ -546,11 +569,15 @@ export async function runPreviewPipeline(
   let keepWorkspace = false;
 
   try {
-    let script = await resolveVideoScript(
-      prompt.trim(),
-      type,
-      enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion)
-    );
+    const previewParts = parseParts(rawParts);
+    let script =
+      previewParts.length > 0
+        ? partsToVideoScript(fieldValues.title || '', previewParts)
+        : await resolveVideoScript(
+            prompt?.trim() || '',
+            type,
+            enrichPrompt(prompt?.trim() || '', templateId, brandId, preferredMotion)
+          );
     script = applyPreferredMotion(script, preferredMotion);
 
     await workspaceService.writeFile(workspacePath, 'script.json', {
@@ -562,27 +589,90 @@ export async function runPreviewPipeline(
     });
 
     const indexHtmlPath = path.join(workspacePath, 'index.html');
+    const socialPreview =
+      exportKindForType(templateType, fieldValues) === 'image';
+    const previewTitle = fieldValues.title || script.title || 'LYON Studio';
+    const skillPreview = await fillStudioSkillHtml({
+      templateId,
+      title: previewTitle,
+      parts: previewParts.length
+        ? previewParts
+        : script.scenes.map((scene, index) => ({
+            id: `scene-${index + 1}`,
+            role: 'body',
+            title: scene.visualText,
+            body: scene.voiceoverText,
+          })),
+      brandId,
+      prompt,
+      palette: brandPalette,
+    });
     await fs.writeFile(
       indexHtmlPath,
-      buildBaseHtml(script, prompt, templateId, brandId),
+      skillPreview ||
+      (socialPreview
+        ? buildSocialGraphicHtml({
+            title: previewTitle,
+            parts: previewParts.length
+              ? previewParts
+              : script.scenes.map((scene, index) => ({
+                  id: `scene-${index + 1}`,
+                  role: 'body',
+                  title: scene.visualText,
+                  body: scene.voiceoverText,
+                })),
+            prompt,
+            brandId,
+            palette: brandPalette,
+            cta: fieldValues.cta,
+            aspect: fieldValues.aspect,
+          })
+        : buildBrandedHtml({
+            title: fieldValues.title || script.title || 'LYON Studio',
+            parts: previewParts,
+            script,
+            prompt,
+            brandId,
+            palette: brandPalette,
+            templateType,
+            mode:
+              templateType === 'document' ||
+              templateType === 'newsletter' ||
+              templateType === 'resume' ||
+              templateType === 'brochure' ||
+              templateType === 'worksheet' ||
+              templateType === 'quiz'
+                ? 'print'
+                : templateType === 'poster' ||
+                    templateType === 'event' ||
+                    templateType === 'infographic' ||
+                    templateType === 'landing' ||
+                    templateType === 'certificate'
+                  ? 'poster'
+                  : 'slides',
+          })),
       'utf-8'
     );
 
     const layoutHtml = path.join(workspacePath, 'layout.html');
-    try {
-      await runHtmlAnything(indexHtmlPath, layoutHtml, workspacePath);
-    } catch {
-      // Soft-fail — preview still works from index.html
+    if (!socialPreview && !skillPreview) {
+      try {
+        await runHtmlAnything(indexHtmlPath, layoutHtml, workspacePath);
+      } catch {
+        // Soft-fail — preview still works from index.html
+      }
     }
 
     const motionHtml = path.join(workspacePath, 'motion.html');
     const motionInput = (await fileExists(layoutHtml))
       ? layoutHtml
       : indexHtmlPath;
-    try {
-      await runMotionAnything(motionInput, motionHtml, workspacePath);
-    } catch {
-      // Soft-fail
+    if (!socialPreview && !skillPreview) {
+      try {
+        await runMotionAnything(motionInput, motionHtml, workspacePath);
+      } catch {
+        // Soft-fail
+      }
     }
 
     const previewName = 'preview.html';
@@ -599,12 +689,12 @@ export async function runPreviewPipeline(
 
     const previewUrl = toPublicWorkspacePath(workspacePath, previewName);
     await saveProjectMeta(workspacePath, {
-      title: script.title || prompt.slice(0, 80) || 'Xem trước OmniStudio',
+      title: script.title || (prompt ?? '').slice(0, 80) || 'Xem trước LYON Studio',
       type,
       kind: 'preview',
       templateId,
       brandId,
-      promptSnippet: prompt.slice(0, 200),
+      promptSnippet: (prompt ?? '').slice(0, 200),
       createdAt: new Date().toISOString(),
       outputUrl: previewUrl,
       outputFileName: previewName,
@@ -642,15 +732,20 @@ export async function runGeneratePipeline(
     templateType,
     fieldValues = {},
     parts: rawParts,
+    brandPalette,
   } = options;
 
-  const kind = exportKindForType(templateType);
-  if (type === 'video' || kind === 'video') {
+  const kind = exportKindForType(templateType, fieldValues);
+  if (kind === 'video' || (!templateType && type === 'video')) {
     return runVideoPipeline(options);
+  }
+  if (kind === 'image') {
+    return runImagePipeline(options);
   }
 
   const parts = parseParts(rawParts);
   const workspacePath = path.resolve(await workspaceService.createWorkspace());
+  const cliLogs: PipelineResult['cliLogs'] = {};
   let keepWorkspace = false;
 
   try {
@@ -672,19 +767,37 @@ export async function runGeneratePipeline(
       parts,
     });
 
-    const title = fieldValues.title || script.title || 'OmniStudio';
+    const title = fieldValues.title || script.title || 'LYON Studio';
     const htmlName = type === 'poster' ? 'poster.html' : 'slides.html';
     const htmlPath = path.join(workspacePath, htmlName);
+    const skillHtml = await fillStudioSkillHtml({
+      templateId,
+      title,
+      parts: parts.length
+        ? parts
+        : script.scenes.map((scene, index) => ({
+            id: `scene-${index + 1}`,
+            role: 'body',
+            title: scene.visualText,
+            body: scene.voiceoverText,
+          })),
+      brandId,
+      prompt,
+      palette: brandPalette,
+    });
     await fs.writeFile(
       htmlPath,
-      buildBrandedHtml({
-        title,
-        parts,
-        script,
-        prompt,
-        brandId,
-        mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
-      }),
+      skillHtml ||
+        buildBrandedHtml({
+          title,
+          parts,
+          script,
+          prompt,
+          brandId,
+          palette: brandPalette,
+          templateType,
+          mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
+        }),
       'utf-8'
     );
 
@@ -693,21 +806,46 @@ export async function runGeneratePipeline(
     if (kind === 'pdf') {
       fileName = 'document.pdf';
       artifactPath = path.join(workspacePath, fileName);
-      await renderBrandedPdf({
-        title,
-        parts: parts.length
-          ? parts
-          : script.scenes.map((scene, index) => ({
-              id: `scene-${index + 1}`,
-              role: 'section',
-              title: scene.visualText,
-              body: scene.voiceoverText,
-            })),
-        outputPath: artifactPath,
-        brandId,
-        prompt,
-        paper: fieldValues.paper,
-      });
+      let printed = false;
+      if (skillHtml && hasChromeCapture()) {
+        try {
+          await printHtmlToPdf({ htmlPath, outputPath: artifactPath });
+          printed = true;
+          cliLogs['skill-pdf'] = {
+            stdout: 'PDF in từ HTML skill html-anything (Chrome).',
+            stderr: '',
+            command: 'chrome --print-to-pdf',
+            ok: true,
+          };
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          cliLogs['skill-pdf'] = {
+            stdout: '',
+            stderr: message,
+            command: 'chrome --print-to-pdf',
+            ok: false,
+            error: message,
+          };
+        }
+      }
+      if (!printed) {
+        await renderBrandedPdf({
+          title,
+          parts: parts.length
+            ? parts
+            : script.scenes.map((scene, index) => ({
+                id: `scene-${index + 1}`,
+                role: 'section',
+                title: scene.visualText,
+                body: scene.voiceoverText,
+              })),
+          outputPath: artifactPath,
+          brandId,
+          palette: brandPalette,
+          prompt,
+          paper: fieldValues.paper,
+        });
+      }
     }
 
     const published = await publishArtifact(
@@ -740,7 +878,7 @@ export async function runGeneratePipeline(
       driveFileId: published.drive?.fileId,
       script,
       audioFiles: [],
-      cliLogs: {},
+      cliLogs,
       templateId,
       brandId,
       preferredMotion,
@@ -752,6 +890,159 @@ export async function runGeneratePipeline(
         await workspaceService.cleanup(workspacePath);
       } catch (cleanupErr) {
         console.error('[pipeline] workspace cleanup failed:', cleanupErr);
+      }
+    }
+  }
+}
+
+async function runImagePipeline(
+  options: PipelineOptions
+): Promise<PipelineResult> {
+  const {
+    prompt = '',
+    type,
+    templateId,
+    brandId,
+    preferredMotion,
+    publishTarget = 'local',
+    fieldValues = {},
+    parts: rawParts,
+    brandPalette,
+  } = options;
+
+  const parts = parseParts(rawParts);
+  const workspacePath = path.resolve(await workspaceService.createWorkspace());
+  let keepWorkspace = false;
+
+  try {
+    const script =
+      parts.length > 0
+        ? partsToVideoScript(fieldValues.title || '', parts)
+        : await resolveVideoScript(
+            prompt.trim(),
+            type,
+            enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion)
+          );
+    await workspaceService.writeFile(workspacePath, 'script.json', {
+      ...script,
+      templateId,
+      brandId,
+      fieldValues,
+      parts,
+    });
+
+    const title = fieldValues.title || script.title || 'LYON Studio';
+    const previewHtml = path.join(workspacePath, 'bai-dang.html');
+    const imageParts = parts.length
+      ? parts
+      : script.scenes.map((scene, index) => ({
+          id: `scene-${index + 1}`,
+          role: 'body' as const,
+          title: scene.visualText,
+          body: scene.voiceoverText,
+        }));
+    const skillHtml = await fillStudioSkillHtml({
+      templateId,
+      title,
+      parts: imageParts,
+      brandId,
+      prompt,
+      palette: brandPalette,
+    });
+    await fs.writeFile(
+      previewHtml,
+      skillHtml ||
+        buildSocialGraphicHtml({
+          title,
+          parts: imageParts,
+          prompt,
+          brandId,
+          palette: brandPalette,
+          cta: fieldValues.cta,
+          aspect: fieldValues.aspect,
+        }),
+      'utf-8'
+    );
+
+    let artifactPath = previewHtml;
+    let fileName = 'bai-dang.html';
+    const size = parseSocialSize(fieldValues);
+    if (skillHtml && hasChromeCapture()) {
+      try {
+        const pngName = 'bai-dang.png';
+        const pngPath = path.join(workspacePath, pngName);
+        await screenshotHtml({
+          htmlPath: previewHtml,
+          outputPath: pngPath,
+          width: size.w,
+          height: size.h,
+        });
+        artifactPath = pngPath;
+        fileName = pngName;
+      } catch (err) {
+        console.error('[pipeline] Chrome PNG skill failed:', err);
+      }
+    }
+    if (fileName === 'bai-dang.html') {
+      try {
+        const rendered = await renderSocialPngs({
+          title,
+          parts: imageParts,
+          fieldValues,
+          brandId,
+          prompt,
+          palette: brandPalette,
+          outputDir: workspacePath,
+        });
+        artifactPath = rendered.artifactPath;
+        fileName = rendered.fileName;
+      } catch (err) {
+        console.error('[pipeline] PNG social failed, falling back to HTML:', err);
+      }
+    }
+
+    const published = await publishArtifact(
+      artifactPath,
+      toPublicWorkspacePath(workspacePath, fileName),
+      publishTarget
+    );
+
+    keepWorkspace = true;
+
+    await saveProjectMeta(workspacePath, {
+      title,
+      type: 'poster',
+      kind: 'final',
+      templateId,
+      brandId,
+      promptSnippet: prompt.slice(0, 200),
+      createdAt: new Date().toISOString(),
+      outputUrl: published.finalOutputPath,
+      driveUrl: published.drive?.webViewLink ?? null,
+      uploadedToDrive: published.uploadedToDrive,
+      outputFileName: fileName,
+    });
+
+    return {
+      workspacePath,
+      finalOutputPath: published.finalOutputPath,
+      absoluteFinalPath: published.absoluteFinalPath,
+      driveUrl: published.drive?.webViewLink,
+      driveFileId: published.drive?.fileId,
+      script,
+      audioFiles: [],
+      cliLogs: {},
+      templateId,
+      brandId,
+      preferredMotion,
+      uploadedToDrive: published.uploadedToDrive,
+    };
+  } finally {
+    if (!keepWorkspace) {
+      try {
+        await workspaceService.cleanup(workspacePath);
+      } catch (cleanupErr) {
+        console.error('[pipeline] image workspace cleanup failed:', cleanupErr);
       }
     }
   }

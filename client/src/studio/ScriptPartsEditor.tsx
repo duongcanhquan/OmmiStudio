@@ -26,9 +26,9 @@ export function ScriptPartsEditor({
   onField: (key: string, value: string) => void
   onParts: (parts: ScriptPart[]) => void
 }) {
-  const meta = metaFieldsForType(type)
+  const meta = metaFieldsForType(type, fieldValues)
   const max = maxPartsForType(type)
-  const showNotes = type === 'video' || type === 'social'
+  const showNotes = type === 'video' || fieldValues.outputFormat === 'video'
 
   function patchPart(id: string, patch: Partial<ScriptPart>) {
     onParts(parts.map((part) => (part.id === id ? { ...part, ...patch } : part)))
@@ -47,7 +47,13 @@ export function ScriptPartsEditor({
             </span>
             {field.options ? (
               <select
-                value={fieldValues[field.key] ?? field.options[0]?.value ?? ''}
+                value={
+                  field.options.some(
+                    (opt) => opt.value === (fieldValues[field.key] ?? '')
+                  )
+                    ? fieldValues[field.key]
+                    : (field.options[0]?.value ?? '')
+                }
                 onChange={(e) => onField(field.key, e.target.value)}
                 className={fieldClass}
               >

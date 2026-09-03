@@ -1,4 +1,4 @@
-# OmniStudio OS (OmmiStudio)
+# LYON Studio
 
 Local content studio: React UI + Express engine wrapping nexu-io CLIs (`html-anything`, `motion-anything`, `html-video`, `open-design`) for Vietnamese video / slide / poster generation.
 

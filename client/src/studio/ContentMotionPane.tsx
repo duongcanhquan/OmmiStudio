@@ -20,9 +20,11 @@ import {
   isFieldRequired,
   isSettingsField,
   mergeFieldDefaults,
+  templateTypeToContentType,
   type RequiredContentField,
   type TemplateType,
 } from '../lib/templateTypes'
+import { catalogById } from '../lib/templateCatalog'
 import { formIsReady } from '../lib/scriptForm'
 import { cn } from '../lib/utils'
 import { ScriptPartsEditor } from './ScriptPartsEditor'
@@ -54,6 +56,9 @@ export function ContentMotionPane() {
 
   const templateType: TemplateType =
     selection.selectedTemplate?.type ?? 'deck'
+  const catalog = selection.selectedTemplate
+    ? catalogById(selection.selectedTemplate.id)
+    : undefined
   const allFields = REQUIRED_FIELDS_BY_TYPE[templateType] ?? []
   const settingFields = allFields.filter((f) => isSettingsField(f))
   const help = TEMPLATE_SCRIPT_HELP[templateType]
@@ -73,7 +78,9 @@ export function ContentMotionPane() {
     ? resolveAssetUrl(result.previewUrl)
     : null
 
-  const isVideo = selection.contentType === 'video'
+  const isVideo =
+    selection.contentType === 'video' ||
+    selection.fieldValues.outputFormat === 'video'
 
   const missingRequired = getMissingRequiredFields(
     templateType,
@@ -103,8 +110,12 @@ export function ContentMotionPane() {
   }, [templateType])
 
   function setField(key: string, value: string) {
+    const fieldValues = { ...selection.fieldValues, [key]: value }
     patchSelection({
-      fieldValues: { ...selection.fieldValues, [key]: value },
+      fieldValues,
+      ...(key === 'outputFormat'
+        ? { contentType: templateTypeToContentType(templateType, fieldValues) }
+        : {}),
     })
   }
 
@@ -123,11 +134,16 @@ export function ContentMotionPane() {
           Điền từng phần đúng mẫu. Hoặc tab AI: viết brief, AI điền các ô, bạn
           sửa rồi xuất.
         </p>
-        {TEMPLATE_FORMAT_NOTE[templateType] && (
-          <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
-            {TEMPLATE_FORMAT_NOTE[templateType]}
-          </p>
-        )}
+        {(() => {
+          const note = catalog
+            ? `Dành cho: ${catalog.purpose}. File xuất: ${catalog.outputLabel}. Thiết kế html-anything «${catalog.skillId}» — AI viết chữ khớp bố cục mẫu đó.`
+            : TEMPLATE_FORMAT_NOTE[templateType]
+          return note ? (
+            <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
+              {note}
+            </p>
+          ) : null
+        })()}
       </header>
 
       {/* Context strip */}
@@ -137,10 +153,9 @@ export function ContentMotionPane() {
             Mẫu đang dùng
           </p>
           <p className="mt-0.5 text-sm font-medium text-cyan-200">
-            {TEMPLATE_TYPE_LABELS[templateType]}
-            {selection.selectedTemplate?.name
-              ? ` · ${selection.selectedTemplate.name}`
-              : ''}
+            {selection.selectedTemplate?.name ??
+              TEMPLATE_TYPE_LABELS[templateType]}
+            {catalog?.outputLabel ? ` · ${catalog.outputLabel}` : ''}
           </p>
         </div>
         <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 px-4 py-3">
@@ -254,9 +269,11 @@ export function ContentMotionPane() {
                     Viết brief — AI điền từng ô form, không xuất file.
                   </p>
                   <p className="mt-1 text-slate-400">
-                    AI viết theo mẫu «{TEMPLATE_TYPE_LABELS[templateType]}»
-                    {brand ? ` và giọng «${brand.name}»` : ''}. Thông số kỹ thuật
-                    đã chọn sẵn — mở phần cài đặt nếu muốn đổi.
+                    AI viết chữ khớp «
+                    {catalog?.purpose ?? TEMPLATE_TYPE_LABELS[templateType]}
+                    » và file {catalog?.outputLabel ?? 'xuất'}
+                    {brand ? `, giọng «${brand.name}»` : ''}. Không bịa bố cục
+                    khác loại mẫu.
                   </p>
                 </div>
 
@@ -384,7 +401,7 @@ export function ContentMotionPane() {
           <div className="relative min-h-0 flex-1 bg-slate-900">
             {previewSrc ? (
               <iframe
-                title="Xem trước OmniStudio"
+                title="Xem trước LYON Studio"
                 src={previewSrc}
                 sandbox="allow-scripts allow-same-origin"
                 className="absolute inset-0 h-full w-full border-0 bg-white"

@@ -82,7 +82,7 @@ function buildSystemPrompt(contentType: ContentType): string {
         ? 'poster'
         : 'slide thuyết trình';
   return [
-    'Bạn là biên tập nội dung OmniStudio — chỉ viết tiếng Việt có dấu.',
+    'Bạn là biên tập nội dung LYON Studio — chỉ viết tiếng Việt có dấu.',
     `Loại sản phẩm: ${typeLabel}.`,
     'Tạo bảng cảnh sẵn sàng dựng HTML / chuyển động / video trên máy này.',
     '',
@@ -527,7 +527,7 @@ function extractUserStory(prompt: string): { title: string; body: string } {
   body = body.replace(/\n(?:Ràng buộc|Constraints)\s*:[\s\S]*$/i, '').trim();
 
   if (!body) body = text;
-  return { title: title || body.split('\n').find((l) => l.trim())?.slice(0, 80) || 'OmniStudio', body };
+  return { title: title || body.split('\n').find((l) => l.trim())?.slice(0, 80) || 'LYON Studio', body };
 }
 
 function splitStoryChunks(body: string): string[] {
@@ -588,7 +588,7 @@ export function buildLocalVideoScript(
 ): VideoScript {
   const { title, body } = extractUserStory(userPrompt);
   const chunks = splitStoryChunks(body);
-  const usable = chunks.length > 0 ? chunks : [title || 'Nội dung OmniStudio'];
+  const usable = chunks.length > 0 ? chunks : [title || 'Nội dung LYON Studio'];
 
   const totalSec = Number(
     firstMatch(userPrompt, [/Thời lượng[^:]*:\s*(\d+)/i])
@@ -629,7 +629,7 @@ export function buildLocalVideoScript(
 
   const scenes: VideoScene[] = parts.slice(0, 24).map((chunk, index) => {
     const spoken = chunk.replace(/\s+/g, ' ').trim().slice(0, 280);
-    const visualText = toScreenCopy(spoken, title || 'OmniStudio');
+    const visualText = toScreenCopy(spoken, title || 'LYON Studio');
     return {
       sceneId: index + 1,
       visualText,
@@ -737,6 +737,9 @@ export async function normalizeStudioForm(input: {
   fieldValues?: Record<string, string>;
   parts?: ScriptPart[];
   brandName?: string;
+  skillBrief?: string;
+  fileLabel?: string;
+  purpose?: string;
 }): Promise<{
   title: string;
   fieldValues: Record<string, string>;
@@ -751,19 +754,28 @@ export async function normalizeStudioForm(input: {
     .map((part, index) => `${index + 1}. [${part.role}] ${part.title} — ${part.body}`)
     .join('\n');
   const system = [
-    'Bạn là biên tập OmniStudio. Chỉ tiếng Việt có dấu.',
+    'Bạn là biên tập LYON Studio. Chỉ tiếng Việt có dấu.',
     'Điền đúng form JSON, không markdown.',
     'Schema: {"title": string, "fieldValues": {"title": string}, "parts": [{"id": string, "role": "hook|body|cta|slide|section|item", "title": string, "body": string, "notes": string}]}',
-    'title và mỗi part.title/body phải ngắn, đúng loại mẫu.',
+    'title và mỗi part.title/body phải ngắn, đúng loại mẫu và đúng file xuất.',
     'Không bịa số liệu. Giữ ô user đã viết nếu hợp lý.',
-  ].join('\n');
+    input.fileLabel
+      ? `File xuất của mẫu này là ${input.fileLabel} — viết chữ vừa khít file đó, không viết như loại khác.`
+      : '',
+    input.purpose ? `Mẫu dành cho: ${input.purpose}.` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
   const user = [
     `Loại mẫu: ${input.templateType}`,
     input.brandName ? `Thương hiệu: ${input.brandName}` : '',
+    input.skillBrief
+      ? `=== BỐ CỤC THIẾT KẾ (html-anything) ===\n${input.skillBrief}`
+      : '',
     `Brief / nháp:\n${input.brief.trim() || '(trống)'}`,
     `Tiêu đề hiện có: ${input.fieldValues?.title || ''}`,
     existing ? `Các phần hiện có:\n${existing}` : 'Chưa có phần.',
-    'Trả về JSON form đã điền.',
+    'Trả về JSON form đã điền, khớp số khung / slide / mục của skill.',
   ]
     .filter(Boolean)
     .join('\n\n');

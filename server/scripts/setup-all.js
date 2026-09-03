@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OmniStudio OS — master setup script
+ * LYON Studio — master setup script
  *
  * 1. Checks system deps (ffmpeg, python/pip)
  * 2. Clones + installs the 4 nexu-io vendor tools under /server/tools
@@ -341,7 +341,7 @@ function installEdgeTts(python) {
  * ───────────────────────────────────────────────────────────── */
 
 function printSummary(report, edgeTts) {
-  banner('OmniStudio OS setup complete');
+  banner('LYON Studio setup complete');
   console.log('  System:');
   console.log(`    Node        ${report.node ? 'OK' : 'MISSING'}`);
   console.log(`    git         ${report.git ? 'OK' : 'MISSING'}`);
@@ -362,7 +362,7 @@ function printSummary(report, edgeTts) {
 }
 
 function main() {
-  banner('OmniStudio OS — Master Setup');
+  banner('LYON Studio — Master Setup');
   console.log(`  Server root: ${SERVER_ROOT}`);
 
   const { report, python } = checkSystemDependencies();

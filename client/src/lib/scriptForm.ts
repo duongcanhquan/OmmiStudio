@@ -16,7 +16,7 @@ export interface ScriptPart {
   notes?: string
 }
 
-export type ExportKind = 'video' | 'html' | 'pdf'
+export type ExportKind = 'video' | 'html' | 'pdf' | 'image'
 
 export interface ScriptMetaField {
   key: string
@@ -28,8 +28,14 @@ function uid(): string {
   return `part-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-export function exportKindForType(type: TemplateType): ExportKind {
-  if (type === 'video' || type === 'social') return 'video'
+export function exportKindForType(
+  type: TemplateType,
+  fieldValues?: Record<string, string>
+): ExportKind {
+  if (type === 'video') return 'video'
+  if (type === 'social') {
+    return fieldValues?.outputFormat === 'video' ? 'video' : 'image'
+  }
   if (
     type === 'document' ||
     type === 'newsletter' ||
@@ -71,14 +77,15 @@ export function defaultRoleForType(type: TemplateType): ScriptPartRole {
 export function partLabel(type: TemplateType, part: ScriptPart, index: number): string {
   if (part.role === 'hook') return 'Mở đầu'
   if (part.role === 'cta') return 'Kêu gọi hành động'
-  if (type === 'video' || type === 'social') return `Cảnh ${index + 1}`
+  if (type === 'video') return `Cảnh ${index + 1}`
+  if (type === 'social') return `Khung ${index + 1}`
   if (type === 'deck') return `Slide ${index + 1}`
   if (type === 'quiz' || type === 'worksheet') return `Câu ${index + 1}`
   return `Phần ${index + 1}`
 }
 
 export function defaultParts(type: TemplateType): ScriptPart[] {
-  if (type === 'video' || type === 'social') {
+  if (type === 'video') {
     return [
       {
         id: uid(),
@@ -126,6 +133,7 @@ export function defaultParts(type: TemplateType): ScriptPart[] {
     ]
   }
   if (
+    type === 'social' ||
     type === 'poster' ||
     type === 'landing' ||
     type === 'infographic' ||
@@ -219,9 +227,61 @@ export function defaultParts(type: TemplateType): ScriptPart[] {
   ]
 }
 
-export function metaFieldsForType(type: TemplateType): ScriptMetaField[] {
+export function metaFieldsForType(
+  type: TemplateType,
+  fieldValues?: Record<string, string>
+): ScriptMetaField[] {
   const title: ScriptMetaField = { key: 'title', label: 'Tiêu đề sản phẩm' }
-  if (type === 'video' || type === 'social') {
+  if (type === 'social') {
+    const asVideo = fieldValues?.outputFormat === 'video'
+    return [
+      title,
+      {
+        key: 'outputFormat',
+        label: 'File xuất',
+        options: [
+          { value: 'image', label: 'Ảnh tĩnh — PNG để đăng' },
+          { value: 'video', label: 'Video chữ động — MP4' },
+        ],
+      },
+      {
+        key: 'platform',
+        label: 'Nền tảng',
+        options: [
+          { value: 'instagram', label: 'Instagram' },
+          { value: 'facebook', label: 'Facebook' },
+          { value: 'tiktok', label: 'TikTok' },
+          { value: 'zalo', label: 'Zalo' },
+          { value: 'youtube-shorts', label: 'YouTube Shorts' },
+        ],
+      },
+      {
+        key: 'aspect',
+        label: 'Tỷ lệ khung hình',
+        options: [
+          { value: '1:1', label: '1:1 vuông — bài đăng' },
+          { value: '3:4', label: '3:4 — thẻ kiến thức' },
+          { value: '4:5', label: '4:5 — bảng tin dọc' },
+          { value: '9:16', label: '9:16 dọc — Story' },
+        ],
+      },
+      ...(asVideo
+        ? [
+            {
+              key: 'duration',
+              label: 'Thời lượng gợi ý (giây)',
+              options: [
+                { value: '15', label: '15 giây' },
+                { value: '30', label: '30 giây' },
+                { value: '45', label: '45 giây' },
+                { value: '60', label: '60 giây' },
+              ],
+            },
+          ]
+        : []),
+    ]
+  }
+  if (type === 'video') {
     return [
       title,
       {

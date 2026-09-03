@@ -2,7 +2,7 @@
   "name": "omnistudio-os",
   "version": "0.1.0",
   "private": true,
-  "description": "OmniStudio OS — local content generation wrapper around html-anything, motion-anything, and html-video",
+  "description": "LYON Studio — local content generation wrapper around html-anything, motion-anything, and html-video",
   "scripts": {
     "dev": "concurrently -k -n server,client -c cyan,magenta \"pnpm dev:server\" \"pnpm dev:client\"",
     "dev:parallel": "pnpm --parallel -r run dev",

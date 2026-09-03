@@ -83,10 +83,20 @@ async function bootstrap() {
     console.error('[uncaughtException]', err);
   });
 
-  app.listen(PORT, () => {
-    console.log(`OmniStudio OS engine listening on http://localhost:${PORT}`);
+  const server = app.listen(PORT, () => {
+    console.log(`LYON Studio engine listening on http://localhost:${PORT}`);
     console.log(`Settings file: ${configManager.getSettingsPath()}`);
     console.log(`Workspaces served from ${workspacesRoot}`);
+  });
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `[bootstrap] Cổng ${PORT} đang bị process khác chiếm. Tắt server cũ rồi chạy lại.`
+      );
+      process.exit(1);
+    }
+    console.error('[bootstrap] listen failed:', err);
+    process.exit(1);
   });
 }
 

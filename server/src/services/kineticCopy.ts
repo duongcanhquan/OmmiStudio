@@ -1,5 +1,5 @@
 /** Rút chữ lên màn hình: ngắn, tiếng Việt, bỏ chỉ dẫn dựng phim. */
-export function toScreenCopy(raw: string, fallback = 'OmniStudio'): string {
+export function toScreenCopy(raw: string, fallback = 'LYON Studio'): string {
   let text = String(raw ?? '').replace(/\s+/g, ' ').trim();
   if (!text) return fallback;
 

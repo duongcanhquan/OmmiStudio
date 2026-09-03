@@ -47,8 +47,10 @@ export async function renderBrandedPdf(input: {
   brandId?: string;
   prompt?: string;
   paper?: string;
+  palette?: import('./brandLook').BrandPaletteInput | null;
 }): Promise<string> {
-  const look = resolveDocumentLook(input.brandId, input.prompt);
+  const look = resolveDocumentLook(input.brandId, input.prompt, input.palette);
+  const primary = look.primary || look.accent;
   const fontPath = FONT_CANDIDATES.find((candidate) => fs.existsSync(candidate));
   if (!fontPath) {
     throw new Error('Không tìm thấy font để in tiếng Việt (cần Arial Unicode hoặc DejaVu).');
@@ -61,9 +63,10 @@ export async function renderBrandedPdf(input: {
 
   const isLetter = /letter/i.test(input.paper ?? '');
   const pageSize: [number, number] = isLetter ? [612, 792] : [595.28, 841.89];
-  const bg = hexToRgb(look.bg);
-  const text = hexToRgb(look.text);
+  const bg = hexToRgb(look.surface);
+  const text = hexToRgb(look.ink);
   const accent = hexToRgb(look.accent);
+  const brand = hexToRgb(primary);
   const secondary = hexToRgb(look.secondary);
 
   const parts = input.parts.length
@@ -86,7 +89,7 @@ export async function renderBrandedPdf(input: {
       y: page.getHeight() - 8,
       width: page.getWidth(),
       height: 8,
-      color: rgb(accent.r, accent.g, accent.b),
+      color: rgb(brand.r, brand.g, brand.b),
     });
   };
   paintPage();
@@ -129,7 +132,7 @@ export async function renderBrandedPdf(input: {
       y: y + 10,
       width: 36,
       height: 3,
-      color: rgb(accent.r, accent.g, accent.b),
+      color: rgb(brand.r, brand.g, brand.b),
     });
     y -= 8;
     drawLines(wrap(part.title || `Phần ${index + 1}`, 48), 16, text);

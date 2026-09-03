@@ -8,6 +8,9 @@ import { executeNexuPipeline } from '../services/NexuPipelineService';
 import { workspaceService } from '../services/WorkspaceService';
 import type { VietnameseVoiceRegion } from '../services/VoiceService';
 import { parseParts, type StudioTemplateType } from '../services/scriptForm';
+import type { BrandPaletteInput } from '../services/brandLook';
+import { skillBindFor } from '../config/studio-skills';
+import { skillBriefForTemplate } from '../services/HtmlSkillService';
 
 export interface RenderHtmlBody {
   content: string;
@@ -27,6 +30,7 @@ export interface GenerateBody {
   publishTarget?: 'local' | 'drive';
   fieldValues?: Record<string, string>;
   parts?: unknown;
+  brandPalette?: BrandPaletteInput | null;
 }
 
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
@@ -48,6 +52,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
     publishTarget = 'local',
     fieldValues,
     parts,
+    brandPalette,
   } = req.body as Partial<GenerateBody>;
 
   const parsedParts = parseParts(parts);
@@ -95,6 +100,8 @@ export async function generate(req: Request, res: Response): Promise<void> {
       fieldValues:
         fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined,
       parts: parsedParts,
+      brandPalette:
+        brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
     });
 
     res.status(200).json({
@@ -140,8 +147,12 @@ export async function generatePreview(
     prompt,
     type = 'slide',
     templateId,
+    templateType,
     brandId,
     motionId,
+    fieldValues,
+    parts,
+    brandPalette,
   } = req.body as Partial<GenerateBody>;
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -162,11 +173,17 @@ export async function generatePreview(
       type: resolvedType,
       voiceRegion: 'south',
       templateId: typeof templateId === 'string' ? templateId : undefined,
+      templateType: typeof templateType === 'string' ? templateType : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
           ? motionId.trim()
           : undefined,
+      fieldValues:
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : {},
+      parts: parseParts(parts),
+      brandPalette:
+        brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
     });
 
     res.status(200).json({
@@ -198,12 +215,14 @@ export async function normalizeScript(
 ): Promise<void> {
   const {
     templateType,
+    templateId,
     brief,
     fieldValues,
     parts,
     brandName,
   } = req.body as {
     templateType?: StudioTemplateType;
+    templateId?: string;
     brief?: string;
     fieldValues?: Record<string, string>;
     parts?: unknown;
@@ -219,12 +238,19 @@ export async function normalizeScript(
   }
 
   try {
+    const bind = skillBindFor(typeof templateId === 'string' ? templateId : undefined);
+    const skillBrief = await skillBriefForTemplate(
+      typeof templateId === 'string' ? templateId : undefined
+    );
     const form = await normalizeStudioForm({
       templateType,
       brief: typeof brief === 'string' ? brief : '',
       fieldValues:
         fieldValues && typeof fieldValues === 'object' ? fieldValues : {},
       parts: parseParts(parts),
+      skillBrief,
+      fileLabel: bind?.fileLabel,
+      purpose: bind?.purpose,
       brandName: typeof brandName === 'string' ? brandName : undefined,
     });
     res.status(200).json({

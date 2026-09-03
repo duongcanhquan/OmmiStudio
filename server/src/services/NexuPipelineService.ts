@@ -51,7 +51,7 @@ export interface NexuPipelineResult {
  * Default argv builders per tool.
  *
  * Flags are intentionally conservative placeholders that match the shape
- * documented in OmniStudio (`--input` / `--output`). When a tool's real
+ * documented in LYON Studio (`--input` / `--output`). When a tool's real
  * CLI differs (e.g. html-anything uses `convert -t … -o …`), we adapt here.
  */
 function defaultArgsForTool(

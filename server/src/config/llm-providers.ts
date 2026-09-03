@@ -1,5 +1,5 @@
 /**
- * Catalog LLM providers for OmniStudio Settings + LLMService.
+ * Catalog LLM providers for LYON Studio Settings + LLMService.
  * OpenAI-compatible providers share the Chat Completions protocol.
  */
 
@@ -54,7 +54,7 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
     ],
     keyHelpUrl: 'https://aistudio.google.com/apikey',
     keyHelpLabel: 'Google AI Studio',
-    hint: 'Khuyến nghị — đã tích hợp sẵn trong OmniStudio.',
+    hint: 'Khuyến nghị — đã tích hợp sẵn trong LYON Studio.',
   },
   {
     id: 'google-antigravity',

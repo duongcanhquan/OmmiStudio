@@ -69,6 +69,14 @@ export interface GeneratePayload {
   publishTarget?: PublishTarget
   fieldValues?: Record<string, string>
   parts?: ScriptPart[]
+  brandPalette?: {
+    name?: string
+    primary?: string
+    secondary?: string
+    accent?: string
+    background?: string
+    text?: string
+  } | null
 }
 
 export interface GenerateResponse {
@@ -124,6 +132,7 @@ export async function generateContent(
     publishTarget: payload.publishTarget ?? 'local',
     fieldValues: payload.fieldValues,
     parts: payload.parts,
+    brandPalette: payload.brandPalette,
   })
   return data
 }
@@ -140,12 +149,14 @@ export async function generatePreview(
     motionId: payload.motionId,
     fieldValues: payload.fieldValues,
     parts: payload.parts,
+    brandPalette: payload.brandPalette,
   })
   return data
 }
 
 export async function normalizeScriptForm(payload: {
   templateType: TemplateType
+  templateId?: string
   brief: string
   fieldValues?: Record<string, string>
   parts?: ScriptPart[]

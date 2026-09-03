@@ -235,6 +235,8 @@ export function mimeFromPath(filePath: string): string {
       return 'application/pdf';
     case '.png':
       return 'image/png';
+    case '.zip':
+      return 'application/zip';
     case '.jpg':
     case '.jpeg':
       return 'image/jpeg';

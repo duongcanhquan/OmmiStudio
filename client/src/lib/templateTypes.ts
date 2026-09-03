@@ -13,7 +13,6 @@ import {
   Mail,
   Newspaper,
   Presentation,
-  Share2,
   ShoppingBag,
 } from 'lucide-react'
 
@@ -40,7 +39,7 @@ export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
   deck: 'Thuyết trình',
   poster: 'Poster',
   video: 'Video chữ động',
-  social: 'Mạng xã hội',
+  social: 'Ảnh mạng xã hội',
   document: 'Tài liệu',
   landing: 'Trang đích',
   newsletter: 'Bản tin',
@@ -57,7 +56,7 @@ export const TEMPLATE_TYPE_ICONS: Record<TemplateType, LucideIcon> = {
   deck: Presentation,
   poster: Image,
   video: Clapperboard,
-  social: Share2,
+  social: Image,
   document: FileText,
   landing: ShoppingBag,
   newsletter: Mail,
@@ -75,7 +74,7 @@ export const TEMPLATE_FILTERS: { id: TemplateFilter; label: string }[] = [
   { id: 'deck', label: 'Thuyết trình' },
   { id: 'poster', label: 'Poster' },
   { id: 'video', label: 'Video chữ động' },
-  { id: 'social', label: 'Mạng xã hội' },
+  { id: 'social', label: 'Ảnh mạng xã hội' },
   { id: 'document', label: 'Tài liệu' },
   { id: 'landing', label: 'Trang đích' },
   { id: 'newsletter', label: 'Bản tin' },
@@ -465,6 +464,18 @@ export const REQUIRED_FIELDS_BY_TYPE: Record<TemplateType, RequiredContentField[
   social: [
     { key: 'title', label: 'Nội dung bài đăng', placeholder: 'Viết chú thích bạn muốn đăng…', required: true, multiline: true, hint: 'Nội dung người xem đọc trên mạng xã hội.' },
     {
+      key: 'outputFormat',
+      label: 'File xuất',
+      placeholder: 'image',
+      required: true,
+      defaultValue: 'image',
+      hint: 'Bài đăng mặc định là ảnh PNG. Chỉ chọn video nếu bạn muốn Reels / TikTok chữ động.',
+      options: [
+        { value: 'image', label: 'Ảnh tĩnh — file PNG để đăng' },
+        { value: 'video', label: 'Video chữ động — file MP4' },
+      ],
+    },
+    {
       key: 'platform',
       label: 'Nền tảng',
       placeholder: 'instagram',
@@ -487,6 +498,7 @@ export const REQUIRED_FIELDS_BY_TYPE: Record<TemplateType, RequiredContentField[
       options: [
         { value: '1080x1080', label: '1080×1080 — bảng tin vuông' },
         { value: '1080x1350', label: '1080×1350 — bảng tin dọc 4:5' },
+        { value: '1080x1440', label: '1080×1440 — thẻ kiến thức 3:4' },
         { value: '1080x1920', label: '1080×1920 — story / reel' },
         { value: '1200x630', label: '1200×630 — link share FB' },
         { value: '1280x720', label: '1280×720 — ảnh thu nhỏ YouTube' },
@@ -944,8 +956,14 @@ export const REQUIRED_FIELDS_BY_TYPE: Record<TemplateType, RequiredContentField[
   ],
 }
 
-export function templateTypeToContentType(type: TemplateType): ContentType {
-  if (type === 'video' || type === 'social') return 'video'
+export function templateTypeToContentType(
+  type: TemplateType,
+  fieldValues?: Record<string, string>
+): ContentType {
+  if (type === 'video') return 'video'
+  if (type === 'social') {
+    return fieldValues?.outputFormat === 'video' ? 'video' : 'poster'
+  }
   if (
     type === 'poster' ||
     type === 'landing' ||
@@ -1020,7 +1038,8 @@ export const TEMPLATE_SCRIPT_HELP: Record<
       'VD:\nCảnh 1 (0–5s): Chữ «Chọn trường cho con không chỉ là chọn điểm.» Lời đọc cùng câu đó.\nCảnh 2: Ba lợi ích — ngắn, một ý một dòng.\nCảnh cuối: «Đăng ký ngày hội mở cửa.»',
   },
   social: {
-    intro: 'Viết caption bạn muốn đăng. Hashtag và CTA không bắt buộc.',
+    intro:
+      'Đây là ẢNH bài đăng (file PNG), không phải video. Mỗi khung = một bức. Muốn clip thì đổi «File xuất» sang video hoặc chọn mẫu Video chữ động.',
     placeholder: 'VD: 3 lý do phụ huynh chọn chúng tôi năm nay… Nhắn tin để tư vấn.',
   },
   document: {
@@ -1070,7 +1089,7 @@ export const TEMPLATE_FORMAT_NOTE: Partial<Record<TemplateType, string>> = {
   video:
     'Sản phẩm: MP4 chữ động — AI/form viết lời tiếng Việt ngắn, hệ thống áp màu thương hiệu, chuyển động chữ, nhạc nền. Không phải clip quay hay video AI tạo hình.',
   social:
-    'Sản phẩm: khung chữ / bài đăng. Có thể dựng thành video chữ ngắn — không phải clip quay sẵn.',
+    'Mặc định xuất ẢNH PNG (đăng Facebook / Instagram / Zalo). Trong form có ô «File xuất» nếu bạn muốn đổi sang video chữ động MP4.',
 }
 
 /** Hint theo loại mẫu — AI viết đúng tính chất format */
@@ -1079,7 +1098,8 @@ export const TEMPLATE_AI_GUIDANCE: Record<TemplateType, string> = {
   poster: 'Chữ poster đúng khổ/hướng: tiêu đề mạnh, nút kêu gọi rõ, ít chữ. Chỉ tiếng Việt.',
   video:
     'Chỉ viết kịch bản chữ động tiếng Việt: visualText tối đa một câu ngắn (lên hình), voiceoverText là lời đọc, kèm số giây và kiểu chuyển động. Không mô tả cảnh quay, không sinh hình.',
-  social: 'Chú thích + thẻ chủ đề + nút kêu gọi đúng nền tảng và kích thước. Chỉ tiếng Việt.',
+  social:
+    'Viết chữ ngắn cho ẢNH bài đăng: tiêu đề lớn, 1–2 câu phụ, CTA. Đúng tỷ lệ (vuông / Story). Chỉ tiếng Việt. Không viết kịch bản video trừ khi người dùng chọn file MP4.',
   document: 'Cấu trúc tài liệu đúng loại + khổ + độ dài: tóm tắt rồi các mục. Chỉ tiếng Việt.',
   landing: 'Nội dung trang đích đúng số phần + kiểu mở đầu; có giá trị cốt lõi và nút kêu gọi. Chỉ tiếng Việt.',
   newsletter: 'Bản tin đúng chiều rộng email, kiểu số và số khối; dòng xem trước trong tóm tắt nếu cần.',

@@ -33,7 +33,7 @@ export type StudioTemplateType =
   | 'worksheet'
   | 'quiz';
 
-export type ExportKind = 'video' | 'html' | 'pdf';
+export type ExportKind = 'video' | 'html' | 'pdf' | 'image';
 
 const PRINT_TYPES = new Set<StudioTemplateType>([
   'document',
@@ -45,9 +45,15 @@ const PRINT_TYPES = new Set<StudioTemplateType>([
   'quiz',
 ]);
 
-export function exportKindForType(type?: string): ExportKind {
+export function exportKindForType(
+  type?: string,
+  fieldValues?: Record<string, string>
+): ExportKind {
   const t = (type || '') as StudioTemplateType;
-  if (t === 'video' || t === 'social') return 'video';
+  if (t === 'video') return 'video';
+  if (t === 'social') {
+    return fieldValues?.outputFormat === 'video' ? 'video' : 'image';
+  }
   if (PRINT_TYPES.has(t)) return 'pdf';
   return 'html';
 }
@@ -98,13 +104,13 @@ export function partsToVideoScript(
       : 5;
   const motions = ['fade-in', 'slide-up', 'zoom-in', 'ken-burns'];
   return {
-    title: title || usable[0]?.title || 'OmniStudio',
+    title: title || usable[0]?.title || 'LYON Studio',
     language: 'vi',
     scenes: usable.map((part, index) => {
       const spoken = (part.notes || part.body || part.title).slice(0, 280);
       return {
         sceneId: index + 1,
-        visualText: toScreenCopy(part.title || part.body, title || 'OmniStudio'),
+        visualText: toScreenCopy(part.title || part.body, title || 'LYON Studio'),
         voiceoverText: spoken,
         motionType: motions[index % motions.length],
         duration: per,

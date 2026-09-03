@@ -28,11 +28,16 @@ const PHASE_STEPS: {
   { id: 'publish', label: 'Đang đóng gói file hoàn chỉnh…' },
 ]
 
-function detectKind(url: string): 'video' | 'html' | 'pdf' | 'drive' | 'unknown' {
+function detectKind(
+  url: string
+): 'video' | 'html' | 'pdf' | 'image' | 'zip' | 'drive' | 'unknown' {
   if (isDriveUrl(url) && /drive\.google\.com/i.test(url)) return 'drive'
   const lower = url.toLowerCase().split('?')[0] ?? url
   if (lower.endsWith('.mp4') || lower.endsWith('.webm')) return 'video'
   if (lower.endsWith('.pdf')) return 'pdf'
+  if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
+    return 'image'
+  if (lower.endsWith('.zip')) return 'zip'
   if (lower.endsWith('.html') || lower.endsWith('.htm'))
     return 'html'
   if (/^https?:\/\//i.test(url)) return 'drive'
@@ -45,7 +50,7 @@ function downloadFileName(url: string, title?: string): string {
     .replace(/[\\/:*?"<>|]/g, '')
     .trim()
     .slice(0, 60)
-  return `${safe || 'omnistudio-ket-qua'}.${ext}`
+  return `${safe || 'lyon-studio-ket-qua'}.${ext}`
 }
 
 export function FinalExport() {
@@ -83,7 +88,7 @@ export function FinalExport() {
   const fileTitle =
     selection.fieldValues.title ||
     selection.selectedTemplate?.name ||
-    'omnistudio-ket-qua'
+    'lyon-studio-ket-qua'
   const fileName = localUrl ? downloadFileName(localUrl, fileTitle) : ''
 
   useEffect(() => {
@@ -124,9 +129,13 @@ export function FinalExport() {
             : primary
               ? kind === 'video'
                 ? 'MP4 chữ động (màu thương hiệu, chuyển động, nhạc). Bấm Tải về khi sẵn sàng.'
-                : kind === 'pdf'
-                  ? 'PDF in được từ form. Bấm Tải về khi sẵn sàng.'
-                  : 'HTML theo thương hiệu. Bấm Tải về khi sẵn sàng.'
+                : kind === 'image'
+                  ? 'Ảnh PNG bài đăng — kéo vào Instagram / Facebook / Zalo. Bấm Tải về khi sẵn sàng.'
+                  : kind === 'zip'
+                    ? 'Gói nhiều ảnh PNG (carousel). Giải nén rồi đăng từng khung.'
+                    : kind === 'pdf'
+                      ? 'PDF in được từ form. Bấm Tải về khi sẵn sàng.'
+                      : 'HTML theo thương hiệu. Bấm Tải về khi sẵn sàng.'
               : canRender
                 ? 'Form đã đủ. Hệ thống bắt đầu dựng file.'
                 : 'Quay lại bước 3, điền từng phần rồi bấm Xuất file.'}
@@ -161,6 +170,14 @@ export function FinalExport() {
               controls
               src={localUrl}
               className="w-full rounded-xl border border-slate-800 bg-black"
+            />
+          )}
+
+          {kind === 'image' && localUrl && !result.uploadedToDrive && (
+            <img
+              src={localUrl}
+              alt="Ảnh bài đăng đã xuất"
+              className="mx-auto max-h-[28rem] w-auto max-w-full rounded-xl border border-slate-800 bg-slate-950"
             />
           )}
 
@@ -246,6 +263,10 @@ export function FinalExport() {
         open={renderLoading}
         phase={renderPhase}
         publishTarget={publishTarget}
+        imageMode={
+          selection.selectedTemplate?.type === 'social' &&
+          selection.fieldValues.outputFormat !== 'video'
+        }
       />
     </div>
   )
@@ -255,11 +276,22 @@ function RenderOverlay({
   open,
   phase,
   publishTarget,
+  imageMode,
 }: {
   open: boolean
   phase: RenderPhase
   publishTarget: PublishTarget
+  imageMode: boolean
 }) {
+  const steps = imageMode
+    ? [
+        { id: 'script' as const, label: 'Đang lấy chữ từng khung…' },
+        { id: 'html' as const, label: 'Đang áp màu thương hiệu…' },
+        { id: 'motion' as const, label: 'Đang xếp bố cục ảnh…' },
+        { id: 'media' as const, label: 'Đang xuất file PNG…' },
+        { id: 'publish' as const, label: 'Đang đóng gói ảnh…' },
+      ]
+    : PHASE_STEPS
   const [elapsed, setElapsed] = useState(0)
   const activeIndex = PHASE_STEPS.findIndex((s) => s.id === phase)
 
@@ -321,7 +353,7 @@ function RenderOverlay({
             </p>
 
             <ol className="space-y-2.5">
-              {PHASE_STEPS.map((step, index) => {
+              {steps.map((step, index) => {
                 const done = activeIndex > index
                 const current =
                   activeIndex === index || (activeIndex < 0 && index === 0)

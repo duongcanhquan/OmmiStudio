@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   fetchBrands,
   fetchMotions,
-  fetchTemplates,
   generateContent,
   generatePreview as apiGeneratePreview,
   normalizeScriptForm,
@@ -13,19 +12,18 @@ import {
   type PublishTarget,
   type TemplateMeta,
 } from '../api/engine'
-import {
-  defaultMetaValues,
-  defaultParts,
-  partsToPrompt,
-} from '../lib/scriptForm'
+import { partsToPrompt } from '../lib/scriptForm'
 import {
   BRAND_INDUSTRY_LABELS,
   mergeBrandSources,
   type StudioBrand,
 } from '../lib/brands'
 import {
+  CURATED_STUDIO_TEMPLATES,
+  defaultsForCatalog,
+} from '../lib/templateCatalog'
+import {
   getMissingRequiredFields,
-  mergeFieldDefaults,
   buildStudioPrompt,
   type TemplateFilter,
 } from '../lib/templateTypes'
@@ -82,7 +80,7 @@ function extractErrorMessage(err: unknown): string {
       return 'Hết thời gian chờ. Render có thể vẫn đang chạy trên server — kiểm tra workspaces hoặc thử lại.'
     }
     if (!err.response) {
-      return 'Không kết nối được engine OmniStudio. Server có đang chạy cổng 3001 không?'
+      return 'Không kết nối được engine LYON Studio. Server có đang chạy cổng 3001 không?'
     }
     return (
       data?.error ||
@@ -93,6 +91,19 @@ function extractErrorMessage(err: unknown): string {
   }
   if (err instanceof Error) return err.message
   return 'Lỗi không xác định.'
+}
+
+function brandPaletteFrom(selection: StudioSelection) {
+  const brand = selection.selectedBrand
+  if (!brand) return null
+  return {
+    name: brand.name,
+    primary: brand.palette.primary,
+    secondary: brand.palette.secondary,
+    accent: brand.palette.accent,
+    background: brand.palette.background,
+    text: brand.palette.text,
+  }
 }
 
 function resolvePrompt(selection: StudioSelection): string {
@@ -228,19 +239,18 @@ export function StudioPage({
       setAssetsLoading(true)
       setAssetsError(null)
       try {
-        const [tpl, br, mo] = await Promise.all([
-          fetchTemplates(),
+        const [br, mo] = await Promise.all([
           fetchBrands(),
           fetchMotions(),
         ])
         if (cancelled) return
+        const tpl = CURATED_STUDIO_TEMPLATES
         const merged = mergeBrandSources(br)
         setTemplates(tpl)
         setBrands(merged)
         setMotions(mo)
         setSelection((prev) => {
           const nextTemplate = prev.selectedTemplate ?? tpl[0] ?? null
-          const nextType = nextTemplate?.type
           return {
             ...prev,
             selectedTemplate: nextTemplate,
@@ -249,12 +259,14 @@ export function StudioPage({
             contentType: prev.selectedTemplate
               ? prev.contentType
               : tpl[0]
-                ? templateTypeToContentType(tpl[0].type)
+                ? templateTypeToContentType(
+                    tpl[0].type,
+                    defaultsForCatalog(tpl[0]).fieldValues
+                  )
                 : 'slide',
-            fieldValues: nextType
+            fieldValues: nextTemplate
               ? {
-                  ...mergeFieldDefaults(nextType, prev.fieldValues),
-                  ...defaultMetaValues(nextType),
+                  ...defaultsForCatalog(nextTemplate).fieldValues,
                   ...(prev.fieldValues.title
                     ? { title: prev.fieldValues.title }
                     : {}),
@@ -263,8 +275,8 @@ export function StudioPage({
             parts:
               prev.parts.length > 0
                 ? prev.parts
-                : nextType
-                  ? defaultParts(nextType)
+                : nextTemplate
+                  ? defaultsForCatalog(nextTemplate).parts
                   : prev.parts,
           }
         })
@@ -350,6 +362,7 @@ export function StudioPage({
     try {
       const response = await normalizeScriptForm({
         templateType: selection.selectedTemplate.type,
+        templateId: selection.selectedTemplate.id,
         brief: [selection.aiBrief, selection.scriptNotes]
           .filter(Boolean)
           .join('\n'),
@@ -360,18 +373,35 @@ export function StudioPage({
       if (!response.success || !response.parts) {
         throw new Error(response.error || 'AI không điền được form.')
       }
-      setSelection((prev) => ({
-        ...prev,
-        fieldValues: {
-          ...prev.fieldValues,
+      setSelection((prev) => {
+        const incoming: Record<string, string> = {
           ...(response.fieldValues ?? {}),
+        }
+        const keep = [
+          'outputFormat',
+          'size',
+          'aspect',
+          'postType',
+          'platform',
+          'paper',
+        ]
+        const fieldValues: Record<string, string> = {
+          ...prev.fieldValues,
+          ...incoming,
           title:
-            response.fieldValues?.title ||
-            response.title ||
-            prev.fieldValues.title,
-        },
-        parts: response.parts ?? prev.parts,
-      }))
+            incoming.title || response.title || prev.fieldValues.title,
+        }
+        for (const key of keep) {
+          if (!incoming[key]?.trim() && prev.fieldValues[key]) {
+            fieldValues[key] = prev.fieldValues[key]
+          }
+        }
+        return {
+          ...prev,
+          fieldValues,
+          parts: response.parts ?? prev.parts,
+        }
+      })
       onNotify?.('AI đã điền từng ô form. Kiểm tra rồi xuất file.')
     } catch (err) {
       const message = extractErrorMessage(err)
@@ -400,6 +430,7 @@ export function StudioPage({
           selection.selectedMotion?.id,
         fieldValues: selection.fieldValues,
         parts: selection.parts,
+        brandPalette: brandPaletteFrom(selection),
       })
       if (!response.success || !response.previewUrl) {
         throw new Error(response.error || 'Xem trước không trả về URL.')
@@ -466,6 +497,7 @@ export function StudioPage({
           publishTarget: target,
           fieldValues: selection.fieldValues,
           parts: selection.parts,
+          brandPalette: brandPaletteFrom(selection),
         })
 
         if (!response.success || !response.finalOutputPath) {
@@ -572,7 +604,7 @@ export function StudioPage({
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-cyan-400/80">
-                  Studio sáng tạo
+                  LYON Studio
                 </p>
                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
                   {step === 1 && '1. Chọn mẫu'}

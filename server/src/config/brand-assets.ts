@@ -1,5 +1,5 @@
 /**
- * Vietnamese-optimized brand typography for OmniStudio OS.
+ * Vietnamese-optimized brand typography for LYON Studio.
  *
  * These Google Fonts all ship solid Vietnamese (Latin Extended) coverage
  * so diacritics (ă â ê ô ơ ư ạ …) render cleanly in html-anything output.
@@ -83,7 +83,7 @@ function buildFontFaceCss(
 ): string {
   const family = stack.map((name) => `"${name}"`).join(', ');
   return `
-/* OmniStudio OS — Vietnamese typography injection */
+/* LYON Studio — Vietnamese typography injection */
 :root {
   --omni-font-sans: ${family};
 }
@@ -101,7 +101,7 @@ html, body {
  * Inject a local font stack (no Google Fonts CDN) so preview/export
  * stays offline. macOS / Windows system fonts cover Vietnamese diacritics.
  *
- * Idempotent: skips injection if OmniStudio markers are already present.
+ * Idempotent: skips injection if LYON Studio / legacy OmniStudio markers are already present.
  */
 export function injectVietnameseFonts(htmlString: string): string {
   if (!htmlString || typeof htmlString !== 'string') {
@@ -110,6 +110,7 @@ export function injectVietnameseFonts(htmlString: string): string {
 
   if (
     htmlString.includes('data-omnistudio-fonts="vi"') ||
+    htmlString.includes('/* LYON Studio — Vietnamese typography injection */') ||
     htmlString.includes('/* OmniStudio OS — Vietnamese typography injection */')
   ) {
     return htmlString;

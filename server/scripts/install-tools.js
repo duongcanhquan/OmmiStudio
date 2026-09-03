@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * OmniStudio OS — vendor tool installer
+ * LYON Studio — vendor tool installer
  *
  * Clones the nexu-io CLI repositories into server/tools/ and installs
  * (and, where required, builds) their dependencies.

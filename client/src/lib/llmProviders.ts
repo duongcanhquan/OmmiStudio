@@ -50,7 +50,7 @@ export const LLM_PROVIDERS: LlmProviderDef[] = [
     ],
     keyHelpUrl: 'https://aistudio.google.com/apikey',
     keyHelpLabel: 'Google AI Studio',
-    hint: 'Khuyến nghị — đã tích hợp sẵn trong OmniStudio.',
+    hint: 'Khuyến nghị — đã tích hợp sẵn trong LYON Studio.',
   },
   {
     id: 'google-antigravity',

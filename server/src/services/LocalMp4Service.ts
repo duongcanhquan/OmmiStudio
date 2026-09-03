@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'child_process';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
+import { bareHex, resolveBrandLook } from './brandLook';
 import { toScreenCopy } from './kineticCopy';
 import type { VideoScript } from './LLMService';
 
@@ -14,47 +15,6 @@ const FONT_CANDIDATES = [
   'C:\\Windows\\Fonts\\arial.ttf',
   '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
 ];
-
-const BRAND_LOOKS: Record<
-  string,
-  { name: string; bg: string; text: string; accent: string; secondary: string }
-> = {
-  'viet-my-college': {
-    name: 'Việt Mỹ College',
-    bg: '0f172a',
-    text: 'f8fafc',
-    accent: 'f59e0b',
-    secondary: '38bdf8',
-  },
-  'tram-thanh-xuan': {
-    name: 'Trạm Thanh Xuân',
-    bg: '1c1917',
-    text: 'fafaf9',
-    accent: 'f59e0b',
-    secondary: '10b981',
-  },
-  'default-neutral': {
-    name: 'OmniStudio',
-    bg: '020617',
-    text: 'f1f5f9',
-    accent: '22d3ee',
-    secondary: '94a3b8',
-  },
-  'edu-stem-lab': {
-    name: 'STEM Lab Edu',
-    bg: '0b1020',
-    text: 'e2e8f0',
-    accent: '22c55e',
-    secondary: '06b6d4',
-  },
-  'shop-local-mart': {
-    name: 'Local Mart',
-    bg: '111827',
-    text: 'f9fafb',
-    accent: '2563eb',
-    secondary: 'f97316',
-  },
-};
 
 function commandExists(bin: string): boolean {
   const probe =
@@ -96,63 +56,22 @@ function parseAspect(prompt: string): { w: number; h: number } {
   return { w: 1920, h: 1080 };
 }
 
-function hex(value: string): string {
-  return value.replace('#', '').trim().toLowerCase();
-}
-
-function namedHex(prompt: string, label: string): string | undefined {
-  const match = prompt.match(
-    new RegExp(`${label}\\s*[#:]*\\s*#?([0-9a-fA-F]{6})`, 'i')
-  );
-  return match?.[1]?.toLowerCase();
-}
-
 function resolveLook(brandId?: string, prompt?: string) {
-  const fromId = brandId ? BRAND_LOOKS[brandId] : undefined;
-  const text = prompt ?? '';
-  const name =
-    text.match(/Tên:\s*(.+)/)?.[1]?.trim().slice(0, 32) ||
-    fromId?.name ||
-    'OmniStudio';
-  const labeled = {
-    bg: namedHex(text, 'nền'),
-    text: namedHex(text, 'chữ'),
-    accent: namedHex(text, 'nhấn'),
-    secondary: namedHex(text, 'phụ'),
+  const look = resolveBrandLook({ brandId, prompt });
+  return {
+    name: look.name,
+    bg: bareHex(look.bg),
+    text: bareHex(look.text),
+    accent: bareHex(look.accent),
+    secondary: bareHex(look.primary),
   };
-  const colors = [...text.matchAll(/#([0-9a-fA-F]{6})/g)].map((m) =>
-    hex(m[1] ?? '')
-  );
-
-  if (fromId) {
-    return {
-      ...fromId,
-      name: fromId.name,
-      bg: labeled.bg ?? fromId.bg,
-      text: labeled.text ?? fromId.text,
-      accent: labeled.accent ?? fromId.accent,
-      secondary: labeled.secondary ?? fromId.secondary,
-    };
-  }
-
-  if (labeled.bg || colors.length >= 1) {
-    return {
-      name,
-      bg: labeled.bg ?? '0b1220',
-      text: labeled.text ?? 'f8fafc',
-      accent: labeled.accent ?? colors[2] ?? colors[0] ?? '22d3ee',
-      secondary: labeled.secondary ?? colors[1] ?? colors[0] ?? '38bdf8',
-    };
-  }
-
-  return { ...BRAND_LOOKS['default-neutral'], name };
 }
 
 function wrapVisual(text: string, maxChars: number): string {
   const words = toScreenCopy(text)
     .split(' ')
     .filter(Boolean);
-  if (words.length === 0) return 'OmniStudio';
+  if (words.length === 0) return 'LYON Studio';
   const lines: string[] = [];
   let current = '';
   for (const word of words) {

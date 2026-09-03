@@ -116,7 +116,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
             )}
           >
             <p className="truncate text-sm font-semibold tracking-tight text-slate-50">
-              OmniStudio
+              LYON Studio
             </p>
             <p className="truncate text-[10px] uppercase tracking-[0.14em] text-slate-500">
               Studio nội dung
