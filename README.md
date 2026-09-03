@@ -1,6 +1,6 @@
 # LYON Studio
 
-Local content studio: React UI + Express engine wrapping nexu-io CLIs (`html-anything`, `motion-anything`, `html-video`, `open-design`) for Vietnamese video / slide / poster generation.
+Local content studio: React UI + Express engine wrapping five nexu-io repos (`html-anything`, `html-video`, `motion-anything`, `open-design`, `nexu`) for Vietnamese image / video / slide / PDF generation.
 
 **GitHub:** [duongcanhquan/OmmiStudio](https://github.com/duongcanhquan/OmmiStudio)
 
@@ -63,8 +63,20 @@ pnpm dev         # concurrently server + client
 
 - Studio 4 bước: mẫu → thương hiệu → brief AI → xuất bản
 - Multi LLM: Gemini, OpenAI, DeepSeek, Claude, Groq, Ollama…
-- Dự án / Brand assets / Settings (Drive, giọng Bắc-Nam)
-- Preview HTML luôn chạy được khi có API key; MP4 đầy đủ cần `pnpm setup` + FFmpeg
+- Dự án / Brand assets / Settings (Drive, giọng Bắc-Nam, trạng thái 5 repo nexu)
+- Preview HTML luôn chạy được khi có API key; MP4 đầy đủ cần `pnpm setup` + FFmpeg + Chrome
+
+## Repo nexu-io (trong `server/tools/`)
+
+| Repo | Studio dùng gì |
+|---|---|
+| [html-anything](https://github.com/nexu-io/html-anything) | 81 skill `example.html` → PNG / PDF / HTML |
+| [html-video](https://github.com/nexu-io/html-video) | 21 template khung hình → MP4 (Chrome chụp + FFmpeg) |
+| [motion-anything](https://github.com/nexu-io/motion-anything) | Recipe CSS kinetic nhúng vào HTML / video |
+| [open-design](https://github.com/nexu-io/open-design) | `DESIGN.md` + `tokens.css` khi chọn brand pack |
+| [nexu](https://github.com/nexu-io/nexu) | App IM OpenClaw (WeChat/Feishu/Slack). **Không** render file — chỉ catalog skill |
+
+`pnpm setup` clone 5 repo (open-design / nexu chỉ lấy thư mục asset, không cài Electron).
 
 ## API nhanh
 

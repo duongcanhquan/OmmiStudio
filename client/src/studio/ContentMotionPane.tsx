@@ -26,8 +26,10 @@ import {
 } from '../lib/templateTypes'
 import { catalogById } from '../lib/templateCatalog'
 import { formIsReady } from '../lib/scriptForm'
+import { loadCustomBrands, saveCustomBrands } from '../lib/brands'
 import { cn } from '../lib/utils'
 import { ScriptPartsEditor } from './ScriptPartsEditor'
+import { MediaFields } from './MediaFields'
 import { selectionHasContent, useStudio } from './StudioContext'
 
 type ContentTab = 'manual' | 'ai'
@@ -41,6 +43,7 @@ export function ContentMotionPane() {
     generatePreview,
     result,
     runAiAssist,
+    upsertBrand,
     aiAssistLoading,
     goNext,
     canGoNext,
@@ -136,7 +139,7 @@ export function ContentMotionPane() {
         </p>
         {(() => {
           const note = catalog
-            ? `Dành cho: ${catalog.purpose}. File xuất: ${catalog.outputLabel}. Thiết kế html-anything «${catalog.skillId}» — AI viết chữ khớp bố cục mẫu đó.`
+            ? `Repo html-anything vẽ layout (skill «${catalog.skillId}») — Studio chỉ điền chữ tiếng Việt rồi Chrome chụp thành ${catalog.outputLabel}. Không phải khung FFmpeg trơn. Dành cho: ${catalog.purpose}.`
             : TEMPLATE_FORMAT_NOTE[templateType]
           return note ? (
             <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
@@ -167,6 +170,31 @@ export function ContentMotionPane() {
             {brand?.name ?? 'Chưa chọn — quay lại bước 2'}
           </p>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 px-4 py-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          Logo và ảnh — dán vào trang thiết kế
+        </p>
+        <MediaFields
+          compact
+          logo={brand?.logoDataUrl}
+          photos={
+            selection.projectPhotos.length
+              ? selection.projectPhotos
+              : (brand?.photoDataUrls ?? [])
+          }
+          onLogo={(logoDataUrl) => {
+            if (!brand) return
+            const next = { ...brand, logoDataUrl, custom: true }
+            upsertBrand(next)
+            const customs = loadCustomBrands().filter((item) => item.id !== next.id)
+            customs.push(next)
+            saveCustomBrands(customs)
+            patchSelection({ selectedBrand: next })
+          }}
+          onPhotos={(projectPhotos) => patchSelection({ projectPhotos })}
+        />
       </div>
 
       {/* Tabs */}
@@ -390,7 +418,7 @@ export function ContentMotionPane() {
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5">
             <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-slate-400">
               <Eye className="size-4" aria-hidden />
-              Xem trước
+              Xem trước · bản sống
             </span>
             {readyForPublish && (
               <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
@@ -400,19 +428,28 @@ export function ContentMotionPane() {
           </div>
           <div className="relative min-h-0 flex-1 bg-slate-900">
             {previewSrc ? (
-              <iframe
-                title="Xem trước LYON Studio"
-                src={previewSrc}
-                sandbox="allow-scripts allow-same-origin"
-                className="absolute inset-0 h-full w-full border-0 bg-white"
-              />
+              <>
+                <iframe
+                  title="Xem trước LYON Studio"
+                  src={previewSrc}
+                  sandbox="allow-scripts allow-same-origin"
+                  className="absolute inset-0 h-full w-full border-0 bg-white"
+                />
+                <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-lg bg-slate-950/75 px-3 py-1.5 text-[10px] leading-snug text-slate-300">
+                  {isVideo
+                    ? 'Bản sống: blob / chữ chạy / scramble. Xuất MP4 sẽ quay lại trang này.'
+                    : 'Bản sống html-anything (có icon). File PNG là một khung chụp đứng.'}
+                </p>
+              </>
             ) : (
               <div className="flex h-full min-h-[18rem] flex-col items-center justify-center gap-2 p-6 text-center">
                 <Eye className="size-7 text-slate-600" aria-hidden />
                 <p className="max-w-xs text-sm text-slate-400">
-                  {tab === 'ai'
-                    ? 'Viết brief → AI điền ô → kiểm tra form → xuất file.'
-                    : 'Điền từng phần → Xuất file hoàn chỉnh.'}
+                  {isVideo
+                    ? 'Bấm «Tạo xem trước» để thấy trang video: màu, blob, chữ chạy. File MP4 quay lại trang này — không phải một ảnh đứng.'
+                    : tab === 'ai'
+                      ? 'Viết brief → AI điền ô → xem trước layout (có icon). PNG xuất là một khung chụp.'
+                      : 'Điền form → Tạo xem trước để thấy thiết kế html-anything, rồi xuất PNG/HTML.'}
                 </p>
               </div>
             )}

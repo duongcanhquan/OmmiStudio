@@ -77,6 +77,10 @@ export interface GeneratePayload {
     background?: string
     text?: string
   } | null
+  brandMedia?: {
+    logo?: string
+    photos?: string[]
+  } | null
 }
 
 export interface GenerateResponse {
@@ -133,6 +137,7 @@ export async function generateContent(
     fieldValues: payload.fieldValues,
     parts: payload.parts,
     brandPalette: payload.brandPalette,
+    brandMedia: payload.brandMedia,
   })
   return data
 }
@@ -150,6 +155,7 @@ export async function generatePreview(
     fieldValues: payload.fieldValues,
     parts: payload.parts,
     brandPalette: payload.brandPalette,
+    brandMedia: payload.brandMedia,
   })
   return data
 }
@@ -190,6 +196,34 @@ export async function fetchBrands(): Promise<BrandMeta[]> {
     brands: BrandMeta[]
   }>('/assets/brands')
   return data.brands ?? []
+}
+
+export interface NexuRepoStatus {
+  id: string
+  name: string
+  url: string
+  present: boolean
+  role: string
+  usedFor: string
+  counts: Record<string, number>
+}
+
+export async function fetchNexuTools(): Promise<{
+  ready: boolean
+  repos: NexuRepoStatus[]
+  videoTemplates: Array<{ id: string; name: string; category?: string }>
+}> {
+  const { data } = await engineApi.get<{
+    success: boolean
+    ready: boolean
+    repos: NexuRepoStatus[]
+    videoTemplates: Array<{ id: string; name: string; category?: string }>
+  }>('/assets/tools')
+  return {
+    ready: Boolean(data.ready),
+    repos: data.repos ?? [],
+    videoTemplates: data.videoTemplates ?? [],
+  }
 }
 
 export async function fetchMotions(): Promise<MotionRecipe[]> {

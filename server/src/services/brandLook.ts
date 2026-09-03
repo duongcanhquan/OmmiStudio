@@ -1,3 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+
+const OPEN_DESIGN_SYSTEMS = path.resolve(
+  __dirname,
+  '../../tools/open-design/design-systems'
+);
+
 export interface BrandLook {
   name: string
   primary: string
@@ -90,6 +98,49 @@ function namedHex(prompt: string, label: string): string | undefined {
   return match?.[1]
 }
 
+function tokenHex(css: string, name: string): string | undefined {
+  const match = css.match(
+    new RegExp(`--${name}\\s*:\\s*(#[0-9a-fA-F]{3,8})`, 'i')
+  )
+  return hex(match?.[1])
+}
+
+/** Đọc tokens.css từ open-design/design-systems/<id>. */
+export function lookFromOpenDesign(brandId?: string): BrandLook | null {
+  if (!brandId?.trim()) return null
+  const folder = path.join(OPEN_DESIGN_SYSTEMS, brandId)
+  const tokensPath = path.join(folder, 'tokens.css')
+  if (!fs.existsSync(tokensPath)) return null
+  try {
+    const css = fs.readFileSync(tokensPath, 'utf-8')
+    const designMd = path.join(folder, 'DESIGN.md')
+    let name = brandId
+    if (fs.existsSync(designMd)) {
+      const h1 = fs.readFileSync(designMd, 'utf-8').match(/^#\s+(.+)$/m)
+      if (h1?.[1]) {
+        name = h1[1].replace(/^Design System Inspired by\s+/i, '').trim()
+      }
+    }
+    const accent = tokenHex(css, 'accent')
+    const bg = tokenHex(css, 'bg')
+    const fg = tokenHex(css, 'fg')
+    if (!accent && !bg) return null
+    return {
+      name,
+      primary: accent || '#5e6ad2',
+      secondary: tokenHex(css, 'accent-hover') || accent || '#7170ff',
+      accent: accent || '#5e6ad2',
+      bg: bg || '#08090a',
+      text: fg || '#f7f8f8',
+      surface: tokenHex(css, 'surface') || '#191a1b',
+      ink: bg || '#0f172a',
+      muted: tokenHex(css, 'muted') || '#8a8f98',
+    }
+  } catch {
+    return null
+  }
+}
+
 export function bareHex(value: string): string {
   return value.replace('#', '').toLowerCase()
 }
@@ -99,15 +150,17 @@ export function resolveBrandLook(input: {
   prompt?: string
   palette?: BrandPaletteInput | null
 }): BrandLook {
+  const od = lookFromOpenDesign(input.brandId)
   const preset = input.brandId ? PRESETS[input.brandId] : undefined
   const text = input.prompt ?? ''
   const name =
     input.palette?.name?.trim() ||
     text.match(/Tên:\s*(.+)/)?.[1]?.trim().slice(0, 48) ||
+    od?.name ||
     preset?.name ||
     'LYON Studio'
 
-  const base: BrandLook = preset ?? PRESETS['default-neutral']
+  const base: BrandLook = od ?? preset ?? PRESETS['default-neutral']
   return {
     name,
     primary:

@@ -3,7 +3,7 @@
  * LYON Studio — master setup script
  *
  * 1. Checks system deps (ffmpeg, python/pip)
- * 2. Clones + installs the 4 nexu-io vendor tools under /server/tools
+ * 2. Clones the 5 nexu-io repos under /server/tools (assets, không build Electron)
  * 3. Installs edge-tts into a local Python venv for Vietnamese voiceovers
  *
  * Usage:
@@ -26,14 +26,9 @@ const VENV_DIR = path.join(SERVER_ROOT, '.venv');
 
 const REPOS = [
   {
-    name: 'open-design',
-    url: 'https://github.com/nexu-io/open-design.git',
-    postInstall: [],
-  },
-  {
     name: 'html-anything',
     url: 'https://github.com/nexu-io/html-anything.git',
-    postInstall: ['pnpm -F @html-anything/cli build'],
+    postInstall: [],
   },
   {
     name: 'motion-anything',
@@ -43,7 +38,19 @@ const REPOS = [
   {
     name: 'html-video',
     url: 'https://github.com/nexu-io/html-video.git',
-    postInstall: ['pnpm -r build'],
+    postInstall: [],
+  },
+  {
+    name: 'open-design',
+    url: 'https://github.com/nexu-io/open-design.git',
+    sparse: ['design-systems', 'design-templates'],
+    postInstall: [],
+  },
+  {
+    name: 'nexu',
+    url: 'https://github.com/nexu-io/nexu.git',
+    sparse: ['nexu-skills', 'skills'],
+    postInstall: [],
   },
 ];
 
@@ -253,22 +260,21 @@ function cloneAndInstallTools(pm) {
       info('already cloned — pulling latest (ff-only)');
       run('git pull --ff-only', target, { allowFail: true });
     } else if (fs.existsSync(target)) {
-      warn(`${repo.name}: folder exists but is not a git repo — skipping clone`);
+      warn(`${repo.name}: folder exists but is not a git repo — keeping local copy`);
+    } else if (repo.sparse?.length) {
+      run(
+        `git clone --depth 1 --filter=blob:none --sparse ${repo.url} "${target}"`,
+        TOOLS_DIR
+      );
+      run(
+        `git sparse-checkout set ${repo.sparse.map((s) => `"${s}"`).join(' ')}`,
+        target
+      );
     } else {
       run(`git clone --depth 1 ${repo.url} "${target}"`, TOOLS_DIR);
     }
 
-    const pkgJson = path.join(target, 'package.json');
-    if (fs.existsSync(pkgJson)) {
-      const installCmd = pm === 'pnpm' ? 'pnpm install' : 'npm install';
-      try {
-        run(installCmd, target);
-      } catch (err) {
-        warn(`${repo.name} install failed: ${err.message}`);
-      }
-    } else {
-      info('no package.json — skipping package install');
-    }
+    info('Studio đọc asset trên đĩa — bỏ qua pnpm install monorepo.');
 
     for (const cmd of repo.postInstall) {
       try {

@@ -25,7 +25,7 @@ async function bootstrap() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '5mb' }));
+  app.use(express.json({ limit: '12mb' }));
 
   const workspacesRoot = path.resolve(__dirname, '../workspaces');
   app.use(

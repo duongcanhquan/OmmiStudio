@@ -84,7 +84,7 @@ function runFfmpeg(ffmpeg: string, args: string[]): Promise<void> {
   });
 }
 
-async function zipFiles(files: string[], zipPath: string): Promise<boolean> {
+export async function zipFiles(files: string[], zipPath: string): Promise<boolean> {
   return new Promise((resolve) => {
     const child = spawn('zip', ['-j', '-q', zipPath, ...files], {
       stdio: 'ignore',

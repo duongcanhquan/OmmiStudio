@@ -24,14 +24,26 @@ import {
 } from './VoiceService';
 import { workspaceService } from './WorkspaceService';
 import { saveProjectMeta } from './ProjectService';
-import { renderLocalMp4 } from './LocalMp4Service';
+import {
+  assembleVideoClips,
+  parseVideoSize,
+  renderLocalMp4,
+} from './LocalMp4Service';
+import { fillHtmlVideoTemplate } from './HtmlVideoService';
+import { recordHtmlToMp4 } from './HtmlRecordService';
 import { renderSocialPngs } from './LocalPngService';
 import {
   buildBrandedHtml,
   buildSocialGraphicHtml,
   type BrandPaletteInput,
 } from './BrandDocumentService';
-import { fillStudioSkillHtml } from './HtmlSkillService';
+import {
+  countSkillCards,
+  fillStudioSkillHtml,
+  isolateSkillCard,
+} from './HtmlSkillService';
+import { skillBindFor } from '../config/studio-skills';
+import { zipFiles } from './LocalPngService';
 import { renderBrandedPdf } from './PdfService';
 import {
   hasChromeCapture,
@@ -45,6 +57,7 @@ import {
   partsToVideoScript,
   type ScriptPart,
 } from './scriptForm';
+import { injectBrandMedia, type BrandMedia } from './BrandMediaService';
 
 export interface CliStepLog {
   stdout: string;
@@ -71,6 +84,7 @@ export interface PipelineOptions {
   fieldValues?: Record<string, string>;
   parts?: ScriptPart[];
   brandPalette?: BrandPaletteInput | null;
+  brandMedia?: BrandMedia | null;
 }
 
 export interface PipelineResult {
@@ -379,6 +393,7 @@ export async function runVideoPipeline(
     publishTarget = 'local',
     fieldValues = {},
     parts: rawParts,
+    brandMedia,
   } = options;
 
   const parts = parseParts(rawParts);
@@ -444,20 +459,130 @@ export async function runVideoPipeline(
     }
 
     const indexHtmlPath = path.join(workspacePath, 'index.html');
+    const sceneParts = script.scenes.map((scene, index) => ({
+      id: `scene-${index + 1}`,
+      role: 'body' as const,
+      title: scene.visualText,
+      body: scene.voiceoverText,
+    }));
+    const designedHtml = await fillHtmlVideoTemplate({
+      templateId,
+      title: script.title || fieldValues.title || 'LYON Studio',
+      parts: sceneParts,
+      brandId,
+      prompt: effectivePrompt,
+      preferredMotion,
+      scenes: script.scenes.map((scene) => ({
+        title: scene.visualText,
+        body: scene.voiceoverText,
+        duration: scene.duration,
+      })),
+      media: brandMedia,
+    });
     await fs.writeFile(
       indexHtmlPath,
-      buildBaseHtml(script, effectivePrompt, templateId, brandId),
+      designedHtml ||
+        injectBrandMedia(
+          buildBaseHtml(script, effectivePrompt, templateId, brandId),
+          brandMedia
+        ),
       'utf-8'
     );
 
     const finalMp4 = path.join(workspacePath, 'final.mp4');
     const previewHtml = path.join(workspacePath, 'preview.html');
+    await fs.copyFile(indexHtmlPath, previewHtml);
+
+    const posters: string[] = [];
+    const size = parseVideoSize(effectivePrompt);
+    const totalSeconds = script.scenes.reduce(
+      (sum, scene) => sum + Math.max(4, Math.min(8, scene.duration || 5)),
+      0
+    );
+    let recorded = false;
+    if (designedHtml && hasChromeCapture()) {
+      try {
+        const recordedPath = path.join(workspacePath, 'recorded.mp4');
+        await recordHtmlToMp4({
+          htmlPath: indexHtmlPath,
+          outputPath: recordedPath,
+          width: size.w,
+          height: size.h,
+          seconds: Math.min(16, Math.max(6, totalSeconds || 8)),
+        });
+        await assembleVideoClips({
+          clipPaths: [recordedPath],
+          outputPath: finalMp4,
+          totalSeconds: Math.min(16, Math.max(6, totalSeconds || 8)),
+        });
+        recorded = true;
+        cliLogs['html-video'] = {
+          stdout: 'Đã quay trang html-video (blob, chữ chạy, recipe motion).',
+          stderr: '',
+          command: 'chrome CDP + ffmpeg',
+          ok: true,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        cliLogs['html-video-record'] = {
+          stdout: '',
+          stderr: message,
+          command: 'chrome CDP record',
+          ok: false,
+          error: message,
+        };
+        for (const [index, scene] of script.scenes.entries()) {
+          const sceneHtml = await fillHtmlVideoTemplate({
+            templateId,
+            title: scene.visualText || script.title || 'LYON Studio',
+            parts: [
+              {
+                id: `scene-${index + 1}`,
+                role: 'body',
+                title: scene.visualText,
+                body: scene.voiceoverText,
+              },
+            ],
+            brandId,
+            prompt: effectivePrompt,
+            preferredMotion,
+            media: brandMedia,
+          });
+          if (!sceneHtml) continue;
+          const htmlName = `scene-${index + 1}.html`;
+          const pngName = `scene-${index + 1}.png`;
+          const htmlPath = path.join(workspacePath, htmlName);
+          const pngPath = path.join(workspacePath, pngName);
+          await fs.writeFile(htmlPath, sceneHtml, 'utf-8');
+          try {
+            await screenshotHtml({
+              htmlPath,
+              outputPath: pngPath,
+              width: size.w,
+              height: size.h,
+            });
+            posters.push(pngPath);
+          } catch (shotErr) {
+            const shotMessage =
+              shotErr instanceof Error ? shotErr.message : String(shotErr);
+            cliLogs[`html-video-frame-${index + 1}`] = {
+              stdout: '',
+              stderr: shotMessage,
+              command: 'chrome --screenshot html-video',
+              ok: false,
+              error: shotMessage,
+            };
+          }
+        }
+      }
+    }
 
     let absoluteArtifact = finalMp4;
     let finalName = 'final.mp4';
     let degraded = false;
 
-    try {
+    if (!recorded) {
+      try {
         await renderLocalMp4({
           script,
           outputPath: finalMp4,
@@ -465,22 +590,25 @@ export async function runVideoPipeline(
           prompt: effectivePrompt,
           brandId,
           preferredMotion,
+          backgroundImages: posters,
         });
-      cliLogs['local-mp4'] = {
-        stdout: 'Đã render MP4 chữ động (màu thương hiệu, chuyển động, nhạc nền).',
-        stderr: '',
-        command: 'ffmpeg-static',
-        ok: true,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      cliLogs['local-mp4'] = {
-        stdout: '',
-        stderr: message,
-        command: 'ffmpeg-static',
-        ok: false,
-        error: message,
-      };
+        cliLogs['local-mp4'] = {
+          stdout:
+            'Đã render MP4 chữ động (màu thương hiệu, chuyển động, nhạc nền).',
+          stderr: '',
+          command: 'ffmpeg-static',
+          ok: true,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        cliLogs['local-mp4'] = {
+          stdout: '',
+          stderr: message,
+          command: 'ffmpeg-static',
+          ok: false,
+          error: message,
+        };
+      }
     }
 
     if (!(await fileExists(finalMp4))) {
@@ -492,7 +620,7 @@ export async function runVideoPipeline(
 
     await cleanupIntermediates(
       workspacePath,
-      new Set([finalName, 'script.json', 'project.json'])
+      new Set([finalName, 'script.json', 'project.json', 'preview.html'])
     );
 
     const published = await publishArtifact(
@@ -560,6 +688,7 @@ export async function runPreviewPipeline(
     fieldValues = {},
     parts: rawParts,
     brandPalette,
+    brandMedia,
   } = options;
   if (!prompt?.trim() && parseParts(rawParts).length === 0) {
     throw new Error('runPreviewPipeline: prompt is required.');
@@ -592,70 +721,94 @@ export async function runPreviewPipeline(
     const socialPreview =
       exportKindForType(templateType, fieldValues) === 'image';
     const previewTitle = fieldValues.title || script.title || 'LYON Studio';
-    const skillPreview = await fillStudioSkillHtml({
+    const previewBodyParts = previewParts.length
+      ? previewParts
+      : script.scenes.map((scene, index) => ({
+          id: `scene-${index + 1}`,
+          role: 'body' as const,
+          title: scene.visualText,
+          body: scene.voiceoverText,
+        }));
+    const videoPreview = await fillHtmlVideoTemplate({
       templateId,
       title: previewTitle,
-      parts: previewParts.length
-        ? previewParts
-        : script.scenes.map((scene, index) => ({
-            id: `scene-${index + 1}`,
-            role: 'body',
-            title: scene.visualText,
-            body: scene.voiceoverText,
-          })),
+      parts: previewBodyParts,
       brandId,
       prompt,
       palette: brandPalette,
+      preferredMotion,
+      scenes: script.scenes.map((scene) => ({
+        title: scene.visualText,
+        body: scene.voiceoverText,
+        duration: scene.duration,
+      })),
+      media: brandMedia,
+    });
+    const skillPreview = await fillStudioSkillHtml({
+      templateId,
+      title: previewTitle,
+      parts: previewBodyParts,
+      brandId,
+      prompt,
+      palette: brandPalette,
+      media: brandMedia,
     });
     await fs.writeFile(
       indexHtmlPath,
+      videoPreview ||
       skillPreview ||
       (socialPreview
-        ? buildSocialGraphicHtml({
-            title: previewTitle,
-            parts: previewParts.length
-              ? previewParts
-              : script.scenes.map((scene, index) => ({
-                  id: `scene-${index + 1}`,
-                  role: 'body',
-                  title: scene.visualText,
-                  body: scene.voiceoverText,
-                })),
-            prompt,
-            brandId,
-            palette: brandPalette,
-            cta: fieldValues.cta,
-            aspect: fieldValues.aspect,
-          })
-        : buildBrandedHtml({
-            title: fieldValues.title || script.title || 'LYON Studio',
-            parts: previewParts,
-            script,
-            prompt,
-            brandId,
-            palette: brandPalette,
-            templateType,
-            mode:
-              templateType === 'document' ||
-              templateType === 'newsletter' ||
-              templateType === 'resume' ||
-              templateType === 'brochure' ||
-              templateType === 'worksheet' ||
-              templateType === 'quiz'
-                ? 'print'
-                : templateType === 'poster' ||
-                    templateType === 'event' ||
-                    templateType === 'infographic' ||
-                    templateType === 'landing' ||
-                    templateType === 'certificate'
-                  ? 'poster'
-                  : 'slides',
-          })),
+        ? injectBrandMedia(
+            buildSocialGraphicHtml({
+              title: previewTitle,
+              parts: previewParts.length
+                ? previewParts
+                : script.scenes.map((scene, index) => ({
+                    id: `scene-${index + 1}`,
+                    role: 'body',
+                    title: scene.visualText,
+                    body: scene.voiceoverText,
+                  })),
+              prompt,
+              brandId,
+              palette: brandPalette,
+              cta: fieldValues.cta,
+              aspect: fieldValues.aspect,
+            }),
+            brandMedia
+          )
+        : injectBrandMedia(
+            buildBrandedHtml({
+              title: fieldValues.title || script.title || 'LYON Studio',
+              parts: previewParts,
+              script,
+              prompt,
+              brandId,
+              palette: brandPalette,
+              templateType,
+              mode:
+                templateType === 'document' ||
+                templateType === 'newsletter' ||
+                templateType === 'resume' ||
+                templateType === 'brochure' ||
+                templateType === 'worksheet' ||
+                templateType === 'quiz'
+                  ? 'print'
+                  : templateType === 'poster' ||
+                      templateType === 'event' ||
+                      templateType === 'infographic' ||
+                      templateType === 'landing' ||
+                      templateType === 'certificate'
+                    ? 'poster'
+                    : 'slides',
+            }),
+            brandMedia
+          )),
       'utf-8'
     );
 
     const layoutHtml = path.join(workspacePath, 'layout.html');
-    if (!socialPreview && !skillPreview) {
+    if (!socialPreview && !skillPreview && !videoPreview) {
       try {
         await runHtmlAnything(indexHtmlPath, layoutHtml, workspacePath);
       } catch {
@@ -667,7 +820,7 @@ export async function runPreviewPipeline(
     const motionInput = (await fileExists(layoutHtml))
       ? layoutHtml
       : indexHtmlPath;
-    if (!socialPreview && !skillPreview) {
+    if (!socialPreview && !skillPreview && !videoPreview) {
       try {
         await runMotionAnything(motionInput, motionHtml, workspacePath);
       } catch {
@@ -733,6 +886,7 @@ export async function runGeneratePipeline(
     fieldValues = {},
     parts: rawParts,
     brandPalette,
+    brandMedia,
   } = options;
 
   const kind = exportKindForType(templateType, fieldValues);
@@ -784,20 +938,24 @@ export async function runGeneratePipeline(
       brandId,
       prompt,
       palette: brandPalette,
+      media: brandMedia,
     });
     await fs.writeFile(
       htmlPath,
       skillHtml ||
-        buildBrandedHtml({
-          title,
-          parts,
-          script,
-          prompt,
-          brandId,
-          palette: brandPalette,
-          templateType,
-          mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
-        }),
+        injectBrandMedia(
+          buildBrandedHtml({
+            title,
+            parts,
+            script,
+            prompt,
+            brandId,
+            palette: brandPalette,
+            templateType,
+            mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
+          }),
+          brandMedia
+        ),
       'utf-8'
     );
 
@@ -908,6 +1066,7 @@ async function runImagePipeline(
     fieldValues = {},
     parts: rawParts,
     brandPalette,
+    brandMedia,
   } = options;
 
   const parts = parseParts(rawParts);
@@ -948,26 +1107,64 @@ async function runImagePipeline(
       brandId,
       prompt,
       palette: brandPalette,
+      media: brandMedia,
     });
     await fs.writeFile(
       previewHtml,
       skillHtml ||
-        buildSocialGraphicHtml({
-          title,
-          parts: imageParts,
-          prompt,
-          brandId,
-          palette: brandPalette,
-          cta: fieldValues.cta,
-          aspect: fieldValues.aspect,
-        }),
+        injectBrandMedia(
+          buildSocialGraphicHtml({
+            title,
+            parts: imageParts,
+            prompt,
+            brandId,
+            palette: brandPalette,
+            cta: fieldValues.cta,
+            aspect: fieldValues.aspect,
+          }),
+          brandMedia
+        ),
       'utf-8'
     );
 
     let artifactPath = previewHtml;
     let fileName = 'bai-dang.html';
     const size = parseSocialSize(fieldValues);
-    if (skillHtml && hasChromeCapture()) {
+    const capture = skillBindFor(templateId)?.capture;
+    if (skillHtml && hasChromeCapture() && capture === 'all-cards') {
+      const total = countSkillCards(skillHtml);
+      const pngs: string[] = [];
+      for (let i = 1; i <= total; i += 1) {
+        const cardHtml = isolateSkillCard(skillHtml, i);
+        const cardPath = path.join(workspacePath, `khung-${i}.html`);
+        const pngPath = path.join(workspacePath, `khung-${i}.png`);
+        await fs.writeFile(cardPath, cardHtml, 'utf-8');
+        try {
+          await screenshotHtml({
+            htmlPath: cardPath,
+            outputPath: pngPath,
+            width: size.w,
+            height: size.h,
+          });
+          pngs.push(pngPath);
+        } catch (err) {
+          console.error(`[pipeline] Chrome card ${i} failed:`, err);
+        }
+      }
+      if (pngs.length === 1) {
+        artifactPath = pngs[0];
+        fileName = path.basename(pngs[0]);
+      } else if (pngs.length > 1) {
+        const zipPath = path.join(workspacePath, 'carousel-anh.zip');
+        if (await zipFiles(pngs, zipPath)) {
+          artifactPath = zipPath;
+          fileName = 'carousel-anh.zip';
+        } else {
+          artifactPath = pngs[0];
+          fileName = path.basename(pngs[0]);
+        }
+      }
+    } else if (skillHtml && hasChromeCapture()) {
       try {
         const pngName = 'bai-dang.png';
         const pngPath = path.join(workspacePath, pngName);

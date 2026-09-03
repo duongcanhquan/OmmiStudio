@@ -61,6 +61,7 @@ const INITIAL_SELECTION: StudioSelection = {
   parts: [],
   voiceRegion: 'south',
   contentType: 'slide',
+  projectPhotos: [],
 }
 
 const INITIAL_RESULT: StudioResult = {
@@ -104,6 +105,16 @@ function brandPaletteFrom(selection: StudioSelection) {
     background: brand.palette.background,
     text: brand.palette.text,
   }
+}
+
+function brandMediaFrom(selection: StudioSelection) {
+  const photos =
+    selection.projectPhotos.length > 0
+      ? selection.projectPhotos
+      : selection.selectedBrand?.photoDataUrls ?? []
+  const logo = selection.selectedBrand?.logoDataUrl
+  if (!logo && photos.length === 0) return null
+  return { logo, photos: photos.slice(0, 3) }
 }
 
 function resolvePrompt(selection: StudioSelection): string {
@@ -348,6 +359,42 @@ export function StudioPage({
     setStep((s) => (s > 1 ? ((s - 1) as StudioStep) : s))
   }, [])
 
+  const requestPreview = useCallback(
+    async (sel: StudioSelection, notifyOk = true) => {
+      const prompt = resolvePrompt(sel)
+      if (!prompt.trim()) return
+      setPreviewLoading(true)
+      setError(null)
+      setSelection((prev) => ({ ...prev, prompt }))
+      try {
+        const response = await apiGeneratePreview({
+          prompt,
+          type: sel.contentType,
+          templateId: sel.selectedTemplate?.id,
+          templateType: sel.selectedTemplate?.type,
+          brandId: sel.selectedBrand?.id,
+          motionId: sel.selectedMotion?.motionType || sel.selectedMotion?.id,
+          fieldValues: sel.fieldValues,
+          parts: sel.parts,
+          brandPalette: brandPaletteFrom(sel),
+          brandMedia: brandMediaFrom(sel),
+        })
+        if (!response.success || !response.previewUrl) {
+          throw new Error(response.error || 'Xem trước không trả về URL.')
+        }
+        setResult((prev) => ({ ...prev, previewUrl: response.previewUrl! }))
+        if (notifyOk) onNotify?.('Đã tạo xem trước — bản HTML sống có chuyển động.')
+      } catch (err) {
+        const message = extractErrorMessage(err)
+        setError(message)
+        onNotify?.(message, true)
+      } finally {
+        setPreviewLoading(false)
+      }
+    },
+    [onNotify]
+  )
+
   const runAiAssist = useCallback(async () => {
     if (!selection.aiBrief.trim() && !selection.scriptNotes.trim()) {
       onNotify?.('Viết brief ngắn (bạn muốn làm gì) rồi bấm AI điền form.', true)
@@ -373,36 +420,35 @@ export function StudioPage({
       if (!response.success || !response.parts) {
         throw new Error(response.error || 'AI không điền được form.')
       }
-      setSelection((prev) => {
-        const incoming: Record<string, string> = {
-          ...(response.fieldValues ?? {}),
+      const incoming: Record<string, string> = {
+        ...(response.fieldValues ?? {}),
+      }
+      const keep = [
+        'outputFormat',
+        'size',
+        'aspect',
+        'postType',
+        'platform',
+        'paper',
+      ]
+      const fieldValues: Record<string, string> = {
+        ...selection.fieldValues,
+        ...incoming,
+        title: incoming.title || response.title || selection.fieldValues.title,
+      }
+      for (const key of keep) {
+        if (!incoming[key]?.trim() && selection.fieldValues[key]) {
+          fieldValues[key] = selection.fieldValues[key]
         }
-        const keep = [
-          'outputFormat',
-          'size',
-          'aspect',
-          'postType',
-          'platform',
-          'paper',
-        ]
-        const fieldValues: Record<string, string> = {
-          ...prev.fieldValues,
-          ...incoming,
-          title:
-            incoming.title || response.title || prev.fieldValues.title,
-        }
-        for (const key of keep) {
-          if (!incoming[key]?.trim() && prev.fieldValues[key]) {
-            fieldValues[key] = prev.fieldValues[key]
-          }
-        }
-        return {
-          ...prev,
-          fieldValues,
-          parts: response.parts ?? prev.parts,
-        }
-      })
-      onNotify?.('AI đã điền từng ô form. Kiểm tra rồi xuất file.')
+      }
+      const nextSelection: StudioSelection = {
+        ...selection,
+        fieldValues,
+        parts: response.parts ?? selection.parts,
+      }
+      setSelection(nextSelection)
+      onNotify?.('AI đã điền form — đang mở bản xem trước sống.')
+      void requestPreview(nextSelection, false)
     } catch (err) {
       const message = extractErrorMessage(err)
       setError(message)
@@ -410,41 +456,11 @@ export function StudioPage({
     } finally {
       setAiAssistLoading(false)
     }
-  }, [selection, onNotify])
+  }, [selection, onNotify, requestPreview])
 
   const handleGeneratePreview = useCallback(async () => {
-    const prompt = resolvePrompt(selection)
-    if (!prompt.trim()) return
-    setPreviewLoading(true)
-    setError(null)
-    setSelection((prev) => ({ ...prev, prompt }))
-    try {
-      const response = await apiGeneratePreview({
-        prompt,
-        type: selection.contentType,
-        templateId: selection.selectedTemplate?.id,
-        templateType: selection.selectedTemplate?.type,
-        brandId: selection.selectedBrand?.id,
-        motionId:
-          selection.selectedMotion?.motionType ||
-          selection.selectedMotion?.id,
-        fieldValues: selection.fieldValues,
-        parts: selection.parts,
-        brandPalette: brandPaletteFrom(selection),
-      })
-      if (!response.success || !response.previewUrl) {
-        throw new Error(response.error || 'Xem trước không trả về URL.')
-      }
-      setResult((prev) => ({ ...prev, previewUrl: response.previewUrl! }))
-      onNotify?.('Đã tạo xem trước.')
-    } catch (err) {
-      const message = extractErrorMessage(err)
-      setError(message)
-      onNotify?.(message, true)
-    } finally {
-      setPreviewLoading(false)
-    }
-  }, [selection, onNotify])
+    await requestPreview(selection)
+  }, [selection, requestPreview])
 
   const handleFinalRender = useCallback(
     async (targetOverride?: PublishTarget) => {
@@ -498,6 +514,7 @@ export function StudioPage({
           fieldValues: selection.fieldValues,
           parts: selection.parts,
           brandPalette: brandPaletteFrom(selection),
+          brandMedia: brandMediaFrom(selection),
         })
 
         if (!response.success || !response.finalOutputPath) {

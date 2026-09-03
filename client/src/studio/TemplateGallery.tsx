@@ -102,7 +102,7 @@ export function TemplateGallery() {
               ? TEMPLATE_FORMAT_NOTE.social
               : templateFilter === 'video'
                 ? TEMPLATE_FORMAT_NOTE.video
-                : 'Chữ to trên thẻ = file xuất (PNG / MP4 / PDF / HTML). Hình là minh họa loại sản phẩm.'}
+                : 'Chữ to = file xuất. Ảnh/slide lấy layout từ html-anything; video từ html-video; màu brand từ open-design. Không phải khung chữ trơn.'}
           </p>
         </div>
         <div className="relative w-full max-w-sm">

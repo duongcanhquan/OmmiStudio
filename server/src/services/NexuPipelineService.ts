@@ -78,29 +78,17 @@ function defaultArgsForTool(
       ];
 
     case 'motion-anything':
-      // Placeholder batch flags — motion.js today is primarily `serve <port>`.
-      // Adjust once a headless `--input/--output` path is confirmed upstream.
-      return [
-        '--input',
-        input,
-        '--output',
-        outputHtml,
-        '--workspace',
-        workspace,
-      ];
+      // CLI thật là `serve <port>`. Studio nhúng recipe CSS qua MotionRecipeService.
+      return ['serve', '4399'];
 
     case 'html-video':
-      // Placeholder; real subcommands include `studio`, `doctor`, `search-templates`.
-      return [
-        'render',
-        '--input',
-        input,
-        '--output',
-        outputDir,
-      ];
+      // CLI thật: doctor / search-templates / project-render.
+      // Studio điền templates/ + Chrome/FFmpeg — không gọi cờ --input giả.
+      return ['search-templates', '--intent', template, '--top', '3'];
 
     case 'open-design':
-      return ['--input', input, '--output', outputDir];
+      // Studio đọc design-systems/, không spawn desktop app.
+      return ['--help'];
 
     default: {
       const _exhaustive: never = tool;

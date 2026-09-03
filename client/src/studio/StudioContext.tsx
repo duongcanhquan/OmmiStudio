@@ -38,6 +38,8 @@ export interface StudioSelection {
   parts: ScriptPart[]
   voiceRegion: VoiceRegion
   contentType: ContentType
+  /** Ảnh riêng bài này — nếu trống thì dùng ảnh trên thương hiệu */
+  projectPhotos: string[]
 }
 
 /** Form đủ tiêu đề + ít nhất một phần có chữ. */

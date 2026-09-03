@@ -9,6 +9,7 @@ import { workspaceService } from '../services/WorkspaceService';
 import type { VietnameseVoiceRegion } from '../services/VoiceService';
 import { parseParts, type StudioTemplateType } from '../services/scriptForm';
 import type { BrandPaletteInput } from '../services/brandLook';
+import { parseBrandMedia } from '../services/BrandMediaService';
 import { skillBindFor } from '../config/studio-skills';
 import { skillBriefForTemplate } from '../services/HtmlSkillService';
 
@@ -31,6 +32,7 @@ export interface GenerateBody {
   fieldValues?: Record<string, string>;
   parts?: unknown;
   brandPalette?: BrandPaletteInput | null;
+  brandMedia?: unknown;
 }
 
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
@@ -53,6 +55,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
     fieldValues,
     parts,
     brandPalette,
+    brandMedia,
   } = req.body as Partial<GenerateBody>;
 
   const parsedParts = parseParts(parts);
@@ -102,6 +105,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
       parts: parsedParts,
       brandPalette:
         brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
+      brandMedia: parseBrandMedia(brandMedia),
     });
 
     res.status(200).json({
@@ -153,6 +157,7 @@ export async function generatePreview(
     fieldValues,
     parts,
     brandPalette,
+    brandMedia,
   } = req.body as Partial<GenerateBody>;
 
   if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
@@ -184,6 +189,7 @@ export async function generatePreview(
       parts: parseParts(parts),
       brandPalette:
         brandPalette && typeof brandPalette === 'object' ? brandPalette : undefined,
+      brandMedia: parseBrandMedia(brandMedia),
     });
 
     res.status(200).json({

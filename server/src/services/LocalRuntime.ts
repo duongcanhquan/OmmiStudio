@@ -5,8 +5,11 @@ import {
   htmlAnythingCli,
   htmlVideoCli,
   motionAnythingCli,
+  openDesignCli,
 } from '../config/nexu-tools';
 import { resolveFfmpegPath } from './LocalMp4Service';
+import { probeNexuStack } from './NexuStackService';
+import { hasChromeCapture } from './ChromeCaptureService';
 
 function commandExists(bin: string): boolean {
   const probe =
@@ -25,9 +28,20 @@ function edgeTtsReady(): boolean {
 }
 
 export function probeLocalRuntime() {
-  const htmlAnything = fs.existsSync(htmlAnythingCli);
-  const motionAnything = fs.existsSync(motionAnythingCli);
-  const htmlVideo = fs.existsSync(htmlVideoCli);
+  const stack = probeNexuStack();
+  const htmlAnything =
+    fs.existsSync(htmlAnythingCli) ||
+    Boolean(stack.repos.find((repo) => repo.id === 'html-anything')?.present);
+  const motionAnything =
+    fs.existsSync(motionAnythingCli) ||
+    Boolean(stack.repos.find((repo) => repo.id === 'motion-anything')?.present);
+  const htmlVideo =
+    fs.existsSync(htmlVideoCli) ||
+    Boolean(stack.repos.find((repo) => repo.id === 'html-video')?.present);
+  const openDesign = Boolean(
+    stack.repos.find((repo) => repo.id === 'open-design')?.present
+  );
+  const nexu = Boolean(stack.repos.find((repo) => repo.id === 'nexu')?.present);
   const ffmpeg = Boolean(resolveFfmpegPath());
   const edgeTts = edgeTtsReady();
 
@@ -35,12 +49,17 @@ export function probeLocalRuntime() {
     htmlAnything,
     motionAnything,
     htmlVideo,
+    openDesign,
+    nexu,
     ffmpeg,
     edgeTts,
+    chrome: hasChromeCapture(),
+    nexuStack: stack,
     /** Đã có kịch bản → xuất HTML local, không cần LLM */
     llmNeededIfScriptExists: false,
-    /** MP4 chữ động: FFmpeg trên PATH hoặc ffmpeg-static */
+    /** MP4: FFmpeg + quay trang html-video (hoặc chữ động fallback) */
     mp4Ready: ffmpeg,
     htmlPreviewReady: true,
+    openDesignCli: fs.existsSync(openDesignCli),
   };
 }

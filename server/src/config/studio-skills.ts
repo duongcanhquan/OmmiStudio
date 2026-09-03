@@ -1,9 +1,17 @@
 /**
- * Mỗi mẫu Studio gắn 1 skill html-anything (example.html + SKILL.md).
- * html-video / open-design chưa clone — không giả vờ gọi CLI.
- * motion-anything chỉ có list/gallery — video MP4 vẫn FFmpeg chữ động.
+ * Mỗi mẫu Studio gắn đúng repo nexu:
+ *   skillId          → html-anything example.html
+ *   videoTemplateId  → html-video templates/ (MP4 thiết kế)
+ *   motionRecipeId   → motion-anything recipes/ (CSS kinetic)
+ * open-design DESIGN.md / tokens.css áp vào màu thương hiệu.
+ * nexu (OpenClaw IM) không render file — chỉ catalog skill.
  */
-export type SkillCapture = 'page' | 'first-card' | 'print';
+export type SkillCapture =
+  | 'page'
+  | 'first-card'
+  | 'packed-card'
+  | 'all-cards'
+  | 'print';
 
 export interface StudioSkillBind {
   skillId: string;
@@ -11,59 +19,65 @@ export interface StudioSkillBind {
   fileLabel: string;
   copyHint: string;
   capture: SkillCapture;
+  videoTemplateId?: string;
+  motionRecipeId?: string;
 }
 
 export const STUDIO_SKILL_MAP: Record<string, StudioSkillBind> = {
   'social-vuong': {
-    skillId: 'card-xiaohongshu',
+    skillId: 'deck-xhs-pastel',
     purpose: 'Ảnh kiến thức Instagram / Facebook / Zalo',
     fileLabel: 'ẢNH PNG',
     copyHint:
-      'Một thẻ kiến thức: tiêu đề rất lớn (≤ 8 từ), 1 câu phụ, CTA ngắn. Không viết kịch bản video.',
+      'Một thẻ pastel đầy đủ: tiêu đề rất lớn (≤ 8 từ), 1 câu phụ, CTA. Không viết kịch bản video.',
     capture: 'first-card',
   },
   'social-story': {
-    skillId: 'poster-hero',
+    skillId: 'deck-xhs-white',
     purpose: 'Ảnh Story dọc 9:16 — tin 24 giờ',
     fileLabel: 'ẢNH PNG',
     copyHint:
       'Story dọc: 1 ý, chữ cực lớn, 1 dòng CTA. Không đoạn văn dài.',
-    capture: 'page',
+    capture: 'first-card',
   },
   'social-carousel': {
     skillId: 'social-carousel',
     purpose: 'Nhiều ảnh kéo ngang Instagram / Facebook',
     fileLabel: 'ẢNH PNG',
     copyHint:
-      'Đúng số khung form. Mỗi khung một ý. Ba tiêu đề nối thành một câu nếu được.',
-    capture: 'page',
+      'Đúng số khung. Mỗi part = một thẻ cinematic (tiêu đề ngắn + 1 caption).',
+    capture: 'all-cards',
   },
   'video-ngang': {
     skillId: 'video-hyperframes',
     purpose: 'Video chữ động ngang — máy chiếu / YouTube',
     fileLabel: 'VIDEO MP4',
     copyHint:
-      'Chữ lên hình: mỗi cảnh một câu ngắn. File thật là MP4 FFmpeg, không phải phim quay.',
+      'Mỗi cảnh một câu ngắn. Trang html-video «liquid hero»: blob màu, chữ sáng, dòng chữ chạy. MP4 quay lại trang đó.',
     capture: 'page',
+    videoTemplateId: 'frame-liquid-bg-hero',
+    motionRecipeId: 'shiny-text',
   },
   'video-doc': {
     skillId: 'vfx-text-cursor',
     purpose: 'Video chữ động dọc — Reels / TikTok / Shorts',
     fileLabel: 'VIDEO MP4',
     copyHint:
-      'Câu siêu ngắn, nhịp dọc. File thật là MP4 chữ động.',
+      'Câu siêu ngắn, nhịp dọc. Trang html-video «vfx-text-cursor»: con trỏ, scramble, chữ chạy. MP4 quay lại trang đó.',
     capture: 'page',
+    videoTemplateId: 'vfx-text-cursor',
+    motionRecipeId: 'text-scramble',
   },
   'poster-mot-mat': {
-    skillId: 'magazine-poster',
-    purpose: 'Poster một mặt — in hoặc đăng',
+    skillId: 'article-sketchnote-editorial',
+    purpose: 'Poster / trang minh họa một mặt',
     fileLabel: 'POSTER HTML',
     copyHint:
-      'Headline tạp chí + vài mục đánh số. Ít chữ, tiêu đề đấm.',
+      'Headline lớn + vài khối có hình minh họa. Ít chữ, tiêu đề đấm.',
     capture: 'page',
   },
   'deck-chuan': {
-    skillId: 'deck-swiss-international',
+    skillId: 'deck-product-launch',
     purpose: 'Bài thuyết trình họp / giảng dạy',
     fileLabel: 'SLIDE HTML',
     copyHint:
@@ -71,11 +85,11 @@ export const STUDIO_SKILL_MAP: Record<string, StudioSkillBind> = {
     capture: 'page',
   },
   'infographic-so-lieu': {
-    skillId: 'data-report',
-    purpose: 'Sơ đồ số liệu — ít chữ, số lớn',
+    skillId: 'live-dashboard',
+    purpose: 'Sơ đồ số liệu — KPI, thẻ, biểu đồ',
     fileLabel: 'ĐỒ HỌA HTML',
     copyHint:
-      'Số lớn, nhãn ngắn. Không bịa số liệu. Mỗi part một chỉ số.',
+      'Số lớn, nhãn ngắn. Không bịa số liệu. Mỗi part một chỉ số / khối.',
     capture: 'page',
   },
   'document-a4': {
@@ -95,11 +109,11 @@ export const STUDIO_SKILL_MAP: Record<string, StudioSkillBind> = {
     capture: 'print',
   },
   'landing-dich': {
-    skillId: 'saas-landing',
+    skillId: 'web-proto-soft',
     purpose: 'Trang đích giới thiệu khóa / dịch vụ',
     fileLabel: 'TRANG HTML',
     copyHint:
-      'Hero + lợi ích + CTA đăng ký. Mỗi part một khối trang.',
+      'Hero + preview + lợi ích + CTA. Mỗi part một khối trang đầy đủ.',
     capture: 'page',
   },
   'brochure-to-roi': {
@@ -111,12 +125,12 @@ export const STUDIO_SKILL_MAP: Record<string, StudioSkillBind> = {
     capture: 'print',
   },
   'event-su-kien': {
-    skillId: 'poster-hero',
-    purpose: 'Thiệp / poster sự kiện',
+    skillId: 'waitlist-page',
+    purpose: 'Trang / thiệp sự kiện (có chỗ logo)',
     fileLabel: 'PDF',
     copyHint:
-      'Tên sự kiện, ngày giờ, địa điểm, CTA. Không viết báo cáo.',
-    capture: 'print',
+      'Tên sự kiện, ngày giờ, địa điểm, CTA. Trang waitlist có ô logo — sau này dán file logo.',
+    capture: 'page',
   },
   'certificate-giay': {
     skillId: 'magazine-poster',

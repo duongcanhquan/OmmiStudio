@@ -20,6 +20,7 @@ import {
   type PublicAppSettings,
   type SettingsFormValues,
 } from '../api/settings'
+import { fetchNexuTools, type NexuRepoStatus } from '../api/engine'
 import { getProviderDef, LLM_PROVIDERS } from '../lib/llmProviders'
 import { cn } from '../lib/utils'
 
@@ -46,7 +47,7 @@ const TABS: {
   {
     id: 'system',
     label: 'Hệ thống',
-    description: 'Giọng đọc mặc định',
+    description: 'Giọng đọc · repo nexu',
     icon: Settings2,
   },
 ]
@@ -80,6 +81,8 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
     apiKeySet: boolean
     serviceAccountSet: boolean
   }>({ apiKeySet: false, serviceAccountSet: false })
+  const [nexuRepos, setNexuRepos] = useState<NexuRepoStatus[]>([])
+  const [nexuReady, setNexuReady] = useState(false)
 
   const {
     register,
@@ -118,9 +121,18 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
     async function load() {
       setLoading(true)
       try {
-        const settings = await fetchSettings()
+        const [settings, tools] = await Promise.all([
+          fetchSettings(),
+          fetchNexuTools().catch(() => ({
+            ready: false,
+            repos: [] as NexuRepoStatus[],
+            videoTemplates: [],
+          })),
+        ])
         if (cancelled) return
         applyPublicSettings(settings)
+        setNexuRepos(tools.repos)
+        setNexuReady(tools.ready)
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Không tải được cài đặt'
@@ -589,6 +601,44 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                 <p className="text-xs text-zinc-500">
                   Có thể ghi đè khi tạo nội dung trong studio.
                 </p>
+              </div>
+
+              <div className="space-y-3 border-t border-zinc-800 pt-5">
+                <header>
+                  <h3 className="text-sm font-semibold text-zinc-100">
+                    Repo nexu-io {nexuReady ? '· sẵn sàng' : '· thiếu thư mục'}
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                    Studio đọc skill / template / DESIGN.md trên máy. nexu
+                    (OpenClaw) là app IM — không render PNG/MP4.
+                  </p>
+                </header>
+                <ul className="space-y-2">
+                  {nexuRepos.map((repo) => (
+                    <li
+                      key={repo.id}
+                      className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-zinc-100">
+                          {repo.name}
+                        </p>
+                        <span
+                          className={cn(
+                            'text-[10px] font-bold uppercase tracking-wide',
+                            repo.present ? 'text-emerald-300' : 'text-amber-300'
+                          )}
+                        >
+                          {repo.present ? 'Có' : 'Thiếu'}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-zinc-400">{repo.role}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                        {repo.usedFor}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </section>
           )}

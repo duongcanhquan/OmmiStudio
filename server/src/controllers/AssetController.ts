@@ -4,6 +4,8 @@ import {
   getAvailableMotions,
   getAvailableTemplates,
 } from '../services/AssetService';
+import { listHtmlVideoTemplates } from '../services/HtmlVideoService';
+import { probeNexuStack } from '../services/NexuStackService';
 
 /**
  * Dynamic asset discovery for the Visual Creation Studio.
@@ -43,6 +45,21 @@ export async function listMotions(_req: Request, res: Response): Promise<void> {
       new Set(motions.map((m) => m.categoryLabel))
     ).sort();
     res.status(200).json({ success: true, motions, categories });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
+    res.status(500).json({ success: false, error: message });
+  }
+}
+
+/** GET /api/v1/assets/tools — 5 repo nexu-io + template html-video */
+export async function listNexuTools(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const stack = probeNexuStack();
+    const videoTemplates = await listHtmlVideoTemplates();
+    res.status(200).json({ success: true, ...stack, videoTemplates });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     res.status(500).json({ success: false, error: message });

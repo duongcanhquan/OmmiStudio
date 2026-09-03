@@ -12,7 +12,7 @@ const CHROME_CANDIDATES = [
   '/usr/bin/chromium',
 ].filter((value): value is string => Boolean(value));
 
-function resolveChromePath(): string | null {
+export function resolveChromePath(): string | null {
   for (const candidate of CHROME_CANDIDATES) {
     if (fs.existsSync(candidate)) return candidate;
   }
@@ -93,8 +93,8 @@ function runChrome(args: string[], outputPath: string): Promise<void> {
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-extensions',
-        '--disable-background-networking',
         '--disable-component-update',
+        '--virtual-time-budget=8000',
         '--disable-sync',
         '--disable-translate',
         '--disable-features=Translate,BackForwardCache,MediaRouter',

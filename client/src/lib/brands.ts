@@ -48,6 +48,10 @@ export interface StudioBrand {
   voice: BrandVoice
   path?: string
   custom?: boolean
+  /** Data URL logo (nén, lưu localStorage cùng brand tùy chỉnh) */
+  logoDataUrl?: string
+  /** Tối đa 3 ảnh mặc định (cơ sở / sản phẩm) */
+  photoDataUrls?: string[]
 }
 
 const STORAGE_KEY = 'omnistudio.customBrands.v1'
@@ -208,6 +212,8 @@ export function emptyBrandDraft(): StudioBrand {
     },
     custom: true,
     path: '(custom)',
+    logoDataUrl: undefined,
+    photoDataUrls: [],
   }
 }
 

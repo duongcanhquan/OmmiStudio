@@ -58,16 +58,16 @@ export const htmlVideoCli = toolPath(
 );
 
 /**
- * open-design — placeholder until we pin the exact headless/CLI entry.
- * The desktop/studio app is large; adjust this once the headless API is wired.
+ * open-design — Studio dùng design-systems/ (DESIGN.md + tokens.css).
+ * Không chạy desktop Electron; CLI headless không bắt buộc.
  */
-export const openDesignCli = toolPath(
-  'open-design',
-  'packages',
-  'standalone',
-  'dist',
-  'cli.js'
-);
+export const openDesignCli = resolveExisting([
+  toolPath('open-design', 'design-systems'),
+  toolPath('open-design', 'packages', 'standalone', 'dist', 'cli.js'),
+]);
+
+/** nexu — desktop IM OpenClaw; Studio chỉ đọc skills, không spawn app. */
+export const nexuRoot = toolPath('nexu');
 
 export const nexuTools = {
   toolsRoot: TOOLS_ROOT,
@@ -75,6 +75,7 @@ export const nexuTools = {
   htmlAnythingCli,
   htmlVideoCli,
   openDesignCli,
+  nexuRoot,
 } as const;
 
 export type NexuToolName =

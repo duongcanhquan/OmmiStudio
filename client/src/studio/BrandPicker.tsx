@@ -19,6 +19,7 @@ import {
 } from '../lib/brands'
 import { cn } from '../lib/utils'
 import { useStudio } from './StudioContext'
+import { MediaFields } from './MediaFields'
 
 const INDUSTRIES = Object.keys(BRAND_INDUSTRY_LABELS) as BrandIndustry[]
 
@@ -74,8 +75,8 @@ export function BrandPicker() {
             Thương hiệu
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Preset sẵn (giáo dục, thương mại…) — xem rõ palette, font, tone; thêm
-            / sửa để customize.
+            Preset sẵn — palette, font, tone. Sửa để thêm logo và tối đa 3 ảnh
+            (cơ sở / sản phẩm). Chúng sẽ dán vào trang thiết kế.
           </p>
         </div>
         <button
@@ -129,13 +130,22 @@ export function BrandPicker() {
                   className="w-full cursor-pointer text-left"
                 >
                   <div className="mb-3 flex items-start justify-between gap-2">
-                    <div>
+                    <div className="flex items-start gap-2">
+                      {brand.logoDataUrl && (
+                        <img
+                          src={brand.logoDataUrl}
+                          alt=""
+                          className="mt-0.5 h-9 w-auto max-w-[3.5rem] rounded-md bg-white object-contain p-0.5"
+                        />
+                      )}
+                      <div>
                       <p className="text-base font-semibold text-slate-50">
                         {brand.name}
                       </p>
                       <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-cyan-400/80">
                         {BRAND_INDUSTRY_LABELS[brand.industry]}
                       </p>
+                      </div>
                     </div>
                     {selected && (
                       <span className="flex size-7 items-center justify-center rounded-full bg-cyan-500 text-slate-950">
@@ -319,6 +329,12 @@ function BrandEditorModal({
               onChange={(e) => patch({ description: e.target.value })}
             />
           </Field>
+          <MediaFields
+            logo={brand.logoDataUrl}
+            photos={brand.photoDataUrls ?? []}
+            onLogo={(logoDataUrl) => patch({ logoDataUrl })}
+            onPhotos={(photoDataUrls) => patch({ photoDataUrls })}
+          />
           <Field label="Ngành">
             <select
               className={inputClass}

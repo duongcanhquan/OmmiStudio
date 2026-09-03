@@ -1033,7 +1033,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
   },
   video: {
     intro:
-      'Đây là video chữ động: mỗi cảnh = chữ tiếng Việt ngắn trên màn hình, chuyển động theo mẫu, nhạc nền, màu thương hiệu. Không quay camera, không tạo hình AI. Viết từng cảnh hoặc để AI viết lời.',
+      'Đây là video HTML có motion: mỗi cảnh một câu ngắn trên trang thiết kế (màu, chữ chạy). Xem trước để thấy chuyển động; xuất MP4 sẽ quay trang đó. Không quay camera, không tạo hình AI.',
     placeholder:
       'VD:\nCảnh 1 (0–5s): Chữ «Chọn trường cho con không chỉ là chọn điểm.» Lời đọc cùng câu đó.\nCảnh 2: Ba lợi ích — ngắn, một ý một dòng.\nCảnh cuối: «Đăng ký ngày hội mở cửa.»',
   },
@@ -1087,7 +1087,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
 /** Giải thích format thật — tránh hiểu nhầm video = phim quay / clip AI */
 export const TEMPLATE_FORMAT_NOTE: Partial<Record<TemplateType, string>> = {
   video:
-    'Sản phẩm: MP4 chữ động — AI/form viết lời tiếng Việt ngắn, hệ thống áp màu thương hiệu, chuyển động chữ, nhạc nền. Không phải clip quay hay video AI tạo hình.',
+    'Sản phẩm: MP4 quay từ trang html-video đang chạy (màu, blob, chữ chạy, recipe motion). Xem trước iframe là bản sống; file PNG của mẫu ảnh vẫn là một khung đứng.',
   social:
     'Mặc định xuất ẢNH PNG (đăng Facebook / Instagram / Zalo). Trong form có ô «File xuất» nếu bạn muốn đổi sang video chữ động MP4.',
 }

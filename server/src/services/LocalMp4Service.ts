@@ -45,7 +45,7 @@ function resolveFontPath(): string {
   );
 }
 
-function parseAspect(prompt: string): { w: number; h: number } {
+export function parseVideoSize(prompt: string): { w: number; h: number } {
   const match = prompt.match(/Tỷ lệ khung hình:\s*([0-9]+):([0-9]+)/i);
   const w = Number(match?.[1]);
   const h = Number(match?.[2]);
@@ -296,6 +296,94 @@ async function mixMusicBed(
   ]);
 }
 
+async function renderPosterClip(input: {
+  ffmpeg: string;
+  posterPath: string;
+  duration: number;
+  size: { w: number; h: number };
+  outputPath: string;
+}): Promise<void> {
+  const duration = Math.max(4, input.duration);
+  await runFfmpeg(input.ffmpeg, [
+    '-y',
+    '-loop',
+    '1',
+    '-i',
+    input.posterPath,
+    '-t',
+    String(duration),
+    '-vf',
+    `scale=${input.size.w}:${input.size.h}:force_original_aspect_ratio=increase,crop=${input.size.w}:${input.size.h}`,
+    '-c:v',
+    'libx264',
+    '-pix_fmt',
+    'yuv420p',
+    '-r',
+    '30',
+    input.outputPath,
+  ]);
+}
+
+export async function assembleVideoClips(input: {
+  clipPaths: string[];
+  outputPath: string;
+  totalSeconds: number;
+}): Promise<string> {
+  const ffmpeg = resolveFfmpegPath();
+  if (!ffmpeg) {
+    throw new Error(
+      'Chưa có FFmpeg. Cài ffmpeg-static (pnpm install) hoặc cài FFmpeg trên máy.'
+    );
+  }
+  const outputPath = path.resolve(input.outputPath);
+  const clips = input.clipPaths
+    .map((clip) => path.resolve(clip))
+    .filter((clip) => fs.existsSync(clip));
+  if (!clips.length) {
+    throw new Error('Không có clip để ghép MP4.');
+  }
+  const workDir = path.join(path.dirname(outputPath), 'mp4-work');
+  await fsPromises.mkdir(workDir, { recursive: true });
+
+  let silentPath = clips[0];
+  if (clips.length > 1) {
+    const listPath = path.join(workDir, 'concat.txt');
+    await fsPromises.writeFile(
+      listPath,
+      clips.map((clip) => `file '${clip.replace(/'/g, "'\\''")}'`).join('\n'),
+      'utf-8'
+    );
+    silentPath = path.join(workDir, 'silent.mp4');
+    await runFfmpeg(ffmpeg, [
+      '-y',
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      listPath,
+      '-c',
+      'copy',
+      silentPath,
+    ]);
+  }
+
+  try {
+    await mixMusicBed(
+      ffmpeg,
+      silentPath,
+      outputPath,
+      Math.max(4, input.totalSeconds)
+    );
+  } catch {
+    await fsPromises.copyFile(silentPath, outputPath);
+  }
+  if (!fs.existsSync(outputPath)) {
+    throw new Error('FFmpeg không tạo được file MP4.');
+  }
+  return outputPath;
+}
+
 export async function renderLocalMp4(input: {
   script: VideoScript;
   outputPath: string;
@@ -303,6 +391,9 @@ export async function renderLocalMp4(input: {
   prompt?: string;
   brandId?: string;
   preferredMotion?: string;
+  /** Ảnh khung html-video (Chrome) — Ken Burns, không vẽ lại chữ FFmpeg */
+  backgroundImage?: string;
+  backgroundImages?: string[];
 }): Promise<string> {
   const ffmpeg = resolveFfmpegPath();
   if (!ffmpeg) {
@@ -312,7 +403,7 @@ export async function renderLocalMp4(input: {
   }
 
   const font = resolveFontPath();
-  const size = parseAspect(input.prompt ?? '');
+  const size = parseVideoSize(input.prompt ?? '');
   const look = resolveLook(input.brandId, input.prompt);
   const outputPath = path.resolve(input.outputPath);
   const workDir = path.join(path.dirname(outputPath), 'mp4-work');
@@ -333,6 +424,23 @@ export async function renderLocalMp4(input: {
   const clips: string[] = [];
   for (const [index, scene] of scenes.entries()) {
     const clipPath = path.join(workDir, `scene_${scene.sceneId}.mp4`);
+    const posterCandidate =
+      input.backgroundImages?.[index] || input.backgroundImage;
+    const poster =
+      posterCandidate && fs.existsSync(posterCandidate)
+        ? path.resolve(posterCandidate)
+        : null;
+    if (poster) {
+      await renderPosterClip({
+        ffmpeg,
+        posterPath: poster,
+        duration: scene.duration,
+        size,
+        outputPath: clipPath,
+      });
+      clips.push(clipPath);
+      continue;
+    }
     await renderSceneClip({
       ffmpeg,
       font,

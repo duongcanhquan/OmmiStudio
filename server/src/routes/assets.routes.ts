@@ -2,6 +2,7 @@ import { Router, type Router as ExpressRouter } from 'express';
 import {
   listBrands,
   listMotions,
+  listNexuTools,
   listTemplates,
 } from '../controllers/AssetController';
 
@@ -17,5 +18,6 @@ const assetsRouter: ExpressRouter = Router();
 assetsRouter.get('/templates', listTemplates);
 assetsRouter.get('/brands', listBrands);
 assetsRouter.get('/motions', listMotions);
+assetsRouter.get('/tools', listNexuTools);
 
 export default assetsRouter;

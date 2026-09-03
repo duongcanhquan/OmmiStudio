@@ -128,7 +128,7 @@ export function FinalExport() {
             ? 'Giữ tab này mở. Khi xong, bấm Tải về — hệ thống không tự tải.'
             : primary
               ? kind === 'video'
-                ? 'MP4 chữ động (màu thương hiệu, chuyển động, nhạc). Bấm Tải về khi sẵn sàng.'
+                ? 'MP4 quay từ trang html-video (màu, chữ chạy, motion). Bấm Tải về khi sẵn sàng.'
                 : kind === 'image'
                   ? 'Ảnh PNG bài đăng — kéo vào Instagram / Facebook / Zalo. Bấm Tải về khi sẵn sàng.'
                   : kind === 'zip'

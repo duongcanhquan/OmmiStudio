@@ -25,33 +25,36 @@ const path = require('path');
 const SERVER_ROOT = path.resolve(__dirname, '..');
 const TOOLS_DIR = path.join(SERVER_ROOT, 'tools');
 
-/** @type {{ name: string, repo: string, install: boolean, postInstall?: string[] }[]} */
+/** @type {{ name: string, repo: string, install: boolean, sparse?: string[], postInstall?: string[] }[]} */
 const REPOS = [
-  {
-    name: 'open-design',
-    repo: 'https://github.com/nexu-io/open-design.git',
-    install: true,
-    // Large monorepo — install only; CLI wiring is still evolving.
-  },
   {
     name: 'html-anything',
     repo: 'https://github.com/nexu-io/html-anything.git',
-    install: true,
-    // Build the CLI so tools/html-anything/cli/dist/run.js exists.
-    postInstall: ['pnpm -F @html-anything/cli build'],
+    // Skills = example.html — không cần pnpm install để Studio dùng.
+    install: false,
   },
   {
     name: 'motion-anything',
     repo: 'https://github.com/nexu-io/motion-anything.git',
-    // Zero npm dependencies — clone is enough; still run install if package.json exists.
-    install: true,
+    install: false,
   },
   {
     name: 'html-video',
     repo: 'https://github.com/nexu-io/html-video.git',
-    install: true,
-    // CLI lives at packages/cli/dist/bin.js after a full workspace build.
-    postInstall: ['pnpm -r build'],
+    // Templates + Chrome/FFmpeg của Studio. Build CLI chỉ khi cần `project-render`.
+    install: false,
+  },
+  {
+    name: 'open-design',
+    repo: 'https://github.com/nexu-io/open-design.git',
+    install: false,
+    sparse: ['design-systems', 'design-templates'],
+  },
+  {
+    name: 'nexu',
+    repo: 'https://github.com/nexu-io/nexu.git',
+    install: false,
+    sparse: ['nexu-skills', 'skills'],
   },
 ];
 
@@ -100,7 +103,7 @@ function ensureGit() {
   }
 }
 
-function cloneOrUpdate(name, repoUrl) {
+function cloneOrUpdate(name, repoUrl, sparse) {
   const target = path.join(TOOLS_DIR, name);
 
   if (fs.existsSync(path.join(target, '.git'))) {
@@ -110,12 +113,20 @@ function cloneOrUpdate(name, repoUrl) {
   }
 
   if (fs.existsSync(target)) {
-    warn(`${name}: folder exists but is not a git repo — skipping clone`);
+    warn(`${name}: folder exists but is not a git repo — keeping local copy`);
     return target;
   }
 
   log(`${name}: cloning ${repoUrl}`);
-  run(`git clone --depth 1 ${repoUrl} "${target}"`, TOOLS_DIR);
+  if (sparse?.length) {
+    run(
+      `git clone --depth 1 --filter=blob:none --sparse ${repoUrl} "${target}"`,
+      TOOLS_DIR
+    );
+    run(`git sparse-checkout set ${sparse.map((s) => `"${s}"`).join(' ')}`, target);
+  } else {
+    run(`git clone --depth 1 ${repoUrl} "${target}"`, TOOLS_DIR);
+  }
   return target;
 }
 
@@ -140,7 +151,7 @@ function main() {
 
   for (const entry of REPOS) {
     log(`── ${entry.name} ──`);
-    const dir = cloneOrUpdate(entry.name, entry.repo);
+    const dir = cloneOrUpdate(entry.name, entry.repo, entry.sparse);
 
     if (entry.install) {
       installDeps(dir, pm);
