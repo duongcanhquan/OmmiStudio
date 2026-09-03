@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   CheckCircle2,
@@ -116,6 +116,43 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
     providerDef.apiStyle === 'openai' ||
     providerDef.apiStyle === 'anthropic'
 
+  const applyPublicSettings = useCallback(
+    (settings: PublicAppSettings) => {
+      setMeta({
+        apiKeySet: settings.llm.apiKeySet,
+        serviceAccountSet: settings.drive.serviceAccountSet,
+      })
+      reset({
+        llm: {
+          provider: settings.llm.provider,
+          apiKey: settings.llm.apiKeySet ? settings.llm.apiKey : '',
+          model: settings.llm.model,
+          baseUrl:
+            settings.llm.baseUrl ||
+            getProviderDef(settings.llm.provider).defaultBaseUrl,
+          fallbackProvider:
+            settings.llm.fallbackProvider ?? ('' as LlmProvider),
+          fallbackApiKey: settings.llm.fallbackApiKeySet
+            ? settings.llm.fallbackApiKey ?? ''
+            : '',
+          fallbackModel: settings.llm.fallbackModel ?? '',
+          fallbackBaseUrl: settings.llm.fallbackBaseUrl ?? '',
+        },
+        drive: {
+          enabled: settings.drive.enabled,
+          serviceAccountJson: settings.drive.serviceAccountSet
+            ? ''
+            : settings.drive.serviceAccountJson,
+          folderId: settings.drive.folderId,
+        },
+        system: {
+          defaultVoice: settings.system.defaultVoice,
+        },
+      })
+    },
+    [reset]
+  )
+
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -145,38 +182,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
     return () => {
       cancelled = true
     }
-  }, [onNotify])
-
-  function applyPublicSettings(settings: PublicAppSettings) {
-    setMeta({
-      apiKeySet: settings.llm.apiKeySet,
-      serviceAccountSet: settings.drive.serviceAccountSet,
-    })
-    reset({
-      llm: {
-        provider: settings.llm.provider,
-        apiKey: settings.llm.apiKeySet ? settings.llm.apiKey : '',
-        model: settings.llm.model,
-        baseUrl:
-          settings.llm.baseUrl ||
-          getProviderDef(settings.llm.provider).defaultBaseUrl,
-        fallbackProvider: settings.llm.fallbackProvider ?? ('' as LlmProvider),
-        fallbackApiKey: settings.llm.fallbackApiKeySet ? (settings.llm.fallbackApiKey ?? '') : '',
-        fallbackModel: settings.llm.fallbackModel ?? '',
-        fallbackBaseUrl: settings.llm.fallbackBaseUrl ?? '',
-      },
-      drive: {
-        enabled: settings.drive.enabled,
-        serviceAccountJson: settings.drive.serviceAccountSet
-          ? ''
-          : settings.drive.serviceAccountJson,
-        folderId: settings.drive.folderId,
-      },
-      system: {
-        defaultVoice: settings.system.defaultVoice,
-      },
-    })
-  }
+  }, [onNotify, applyPublicSettings])
 
   function onProviderChange(next: LlmProvider) {
     setValue('llm.provider', next, { shouldDirty: true })
@@ -334,7 +340,8 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
           onSubmit={handleSubmit(onSave)}
         >
           {tab === 'llm' && (
-            <section className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
+            <>
+              <section className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5 sm:p-6">
               <header>
                 <h2 className="text-lg font-semibold text-zinc-50">
                   Nhà cung cấp AI (tùy chọn)
@@ -547,6 +554,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
                 </div>
               </div>
             </section>
+            </>
           )}
 
           {tab === 'drive' && (
