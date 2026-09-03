@@ -88,15 +88,15 @@ export function BrandAssetsPage({
     saveCustomBrands(customs)
     setSelectedId(brand.id)
     setEditing(null)
-    onNotify?.('Đã lưu thương hiệu.')
+    onNotify?.('Đã lưu mẫu.')
   }
 
   function handleDelete(brand: StudioBrand) {
-    if (!window.confirm(`Xóa thương hiệu «${brand.name}»?`)) return
+    if (!window.confirm(`Xóa mẫu «${brand.name}»?`)) return
     setBrands((prev) => prev.filter((b) => b.id !== brand.id))
     saveCustomBrands(loadCustomBrands().filter((b) => b.id !== brand.id))
     if (selectedId === brand.id) setSelectedId(null)
-    onNotify?.('Đã xóa thương hiệu tùy chỉnh.')
+    onNotify?.('Đã xóa mẫu tùy chỉnh.')
   }
 
   return (
@@ -108,10 +108,10 @@ export function BrandAssetsPage({
               Thư viện
             </p>
             <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-              Thư viện thương hiệu
+              Thư viện mẫu
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              Quản lý palette, font, tone giọng — dùng lại trong Studio.
+              Màu, chữ, logo — diện mạo file khi chọn mẫu trong Studio.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -128,7 +128,7 @@ export function BrandAssetsPage({
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
             >
               <Plus className="size-4" aria-hidden />
-              Thêm thương hiệu
+              Thêm mẫu
             </button>
           </div>
         </div>
@@ -316,7 +316,7 @@ function BrandEditModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-50">
-            Chỉnh sửa thương hiệu
+            Chỉnh sửa mẫu
           </h3>
           <button
             type="button"

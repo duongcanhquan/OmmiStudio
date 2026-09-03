@@ -1156,6 +1156,8 @@ export function buildPromptFromFields(
 export function buildStudioPrompt(input: {
   templateType: TemplateType
   templateName?: string
+  layoutName?: string
+  layoutHint?: string
   brand?: BrandPromptSlice | null
   aiBrief?: string
   scriptNotes?: string
@@ -1165,6 +1167,8 @@ export function buildStudioPrompt(input: {
   const {
     templateType,
     templateName,
+    layoutName,
+    layoutHint,
     brand,
     aiBrief,
     scriptNotes,
@@ -1180,6 +1184,16 @@ export function buildStudioPrompt(input: {
     TEMPLATE_AI_GUIDANCE[templateType],
     '',
   ]
+
+  if (layoutName) {
+    lines.push(
+      '=== BỐ CỤC ĐÃ CHỌN ===',
+      `Tên: ${layoutName}`,
+      layoutHint ? `Cách xếp: ${layoutHint}` : '',
+      'Viết chữ khớp chỗ đặt (tiêu đề, từ nhấn, số, CTA) — không đổi layout.',
+      ''
+    )
+  }
 
   if (brand?.name) {
     lines.push(

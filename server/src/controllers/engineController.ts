@@ -10,7 +10,7 @@ import type { VietnameseVoiceRegion } from '../services/VoiceService';
 import { parseParts, type StudioTemplateType } from '../services/scriptForm';
 import type { BrandPaletteInput } from '../services/brandLook';
 import { parseBrandMedia } from '../services/BrandMediaService';
-import { skillBindFor } from '../config/studio-skills';
+import { resolveSkillBind } from '../config/studio-layouts';
 import { skillBriefForTemplate } from '../services/HtmlSkillService';
 
 export interface RenderHtmlBody {
@@ -24,6 +24,7 @@ export interface GenerateBody {
   voiceRegion?: VietnameseVoiceRegion;
   templateId?: string;
   templateType?: StudioTemplateType;
+  layoutId?: string;
   brandId?: string;
   /** Preferred motion-anything recipe / motionType */
   motionId?: string;
@@ -49,6 +50,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
     voiceRegion = 'south',
     templateId,
     templateType,
+    layoutId,
     brandId,
     motionId,
     publishTarget = 'local',
@@ -94,6 +96,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
       voiceRegion: voiceRegion as VietnameseVoiceRegion,
       templateId: typeof templateId === 'string' ? templateId : undefined,
       templateType: typeof templateType === 'string' ? templateType : undefined,
+      layoutId: typeof layoutId === 'string' ? layoutId : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
@@ -152,6 +155,7 @@ export async function generatePreview(
     type = 'slide',
     templateId,
     templateType,
+    layoutId,
     brandId,
     motionId,
     fieldValues,
@@ -179,6 +183,7 @@ export async function generatePreview(
       voiceRegion: 'south',
       templateId: typeof templateId === 'string' ? templateId : undefined,
       templateType: typeof templateType === 'string' ? templateType : undefined,
+      layoutId: typeof layoutId === 'string' ? layoutId : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
@@ -222,6 +227,7 @@ export async function normalizeScript(
   const {
     templateType,
     templateId,
+    layoutId,
     brief,
     fieldValues,
     parts,
@@ -229,6 +235,7 @@ export async function normalizeScript(
   } = req.body as {
     templateType?: StudioTemplateType;
     templateId?: string;
+    layoutId?: string;
     brief?: string;
     fieldValues?: Record<string, string>;
     parts?: unknown;
@@ -244,9 +251,13 @@ export async function normalizeScript(
   }
 
   try {
-    const bind = skillBindFor(typeof templateId === 'string' ? templateId : undefined);
+    const bind = resolveSkillBind(
+      typeof templateId === 'string' ? templateId : undefined,
+      typeof layoutId === 'string' ? layoutId : undefined
+    );
     const skillBrief = await skillBriefForTemplate(
-      typeof templateId === 'string' ? templateId : undefined
+      typeof templateId === 'string' ? templateId : undefined,
+      typeof layoutId === 'string' ? layoutId : undefined
     );
     const form = await normalizeStudioForm({
       templateType,

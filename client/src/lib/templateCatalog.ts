@@ -33,7 +33,7 @@ export const CURATED_STUDIO_TEMPLATES: StudioCatalogItem[] = [
     name: 'Ảnh bài đăng vuông',
     type: 'social',
     description:
-      'Thẻ html-anything «deck-xhs-pastel»: bố cục editorial, màu pastel, chữ lớn. File xuất PNG.',
+      'Ảnh vuông Facebook / Instagram. Bước 2 chọn bố cục: chữ lớn pastel, đánh số, ảnh+chữ, hoặc bìa tạp chí. File xuất PNG.',
     path: '(curated)',
     output: 'image',
     outputLabel: 'ẢNH PNG',
@@ -293,9 +293,9 @@ export function defaultsForCatalog(template: TemplateMeta): {
   if (template.id === 'video-doc' || template.id === 'social-story') {
     fieldValues.aspect = '9:16'
     fieldValues.size = '1080x1920'
-  } else if (template.id === 'social-vuong') {
-    fieldValues.aspect = '3:4'
-    fieldValues.size = '1080x1440'
+  } else   if (template.id === 'social-vuong') {
+    fieldValues.aspect = '1:1'
+    fieldValues.size = '1080x1080'
   } else if (template.id === 'social-carousel') {
     fieldValues.aspect = '1:1'
     fieldValues.size = '1080x1080'
@@ -313,7 +313,7 @@ export function defaultsForCatalog(template: TemplateMeta): {
           : 'single'
   }
 
-  if (template.id === 'social-vuong') fieldValues.platform = 'instagram'
+  if (template.id === 'social-vuong') fieldValues.platform = 'facebook'
   if (template.id === 'social-story') fieldValues.platform = 'instagram'
   if (template.id === 'social-carousel') fieldValues.platform = 'instagram'
 

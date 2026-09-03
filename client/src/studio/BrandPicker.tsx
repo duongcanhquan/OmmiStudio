@@ -1,14 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Check,
-  Pencil,
-  Plus,
-  Trash2,
-  Type,
-  Volume2,
-  X,
-} from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BRAND_INDUSTRY_LABELS,
   emptyBrandDraft,
@@ -17,9 +9,23 @@ import {
   type BrandIndustry,
   type StudioBrand,
 } from '../lib/brands'
+import {
+  LAYOUT_STYLE_LABELS,
+  defaultLayoutId,
+  layoutById,
+  layoutsForLoai,
+  layoutsForLoaiStyle,
+  styleOf,
+  stylesForLoai,
+  type LayoutStyle,
+  type StudioLayout,
+} from '../lib/layoutCatalog'
+import { catalogById, type PreviewFrame } from '../lib/templateCatalog'
 import { cn } from '../lib/utils'
 import { useStudio } from './StudioContext'
 import { MediaFields } from './MediaFields'
+import { LayoutPreview } from './LayoutPreview'
+import { LookPreview } from './LookPreview'
 
 const INDUSTRIES = Object.keys(BRAND_INDUSTRY_LABELS) as BrandIndustry[]
 
@@ -29,12 +35,38 @@ export function BrandPicker() {
   const [industryFilter, setIndustryFilter] = useState<BrandIndustry | 'all'>(
     'all'
   )
+  const [layoutStyle, setLayoutStyle] = useState<LayoutStyle | 'all'>('all')
   const [editing, setEditing] = useState<StudioBrand | null>(null)
 
   const filtered = useMemo(() => {
     if (industryFilter === 'all') return brands
     return brands.filter((b) => b.industry === industryFilter)
   }, [brands, industryFilter])
+  const loaiId = selection.selectedTemplate?.id ?? ''
+  const frame =
+    catalogById(loaiId)?.frame ?? 'square'
+  const loaiName = selection.selectedTemplate?.name ?? 'sản phẩm đã chọn'
+  const activeBrand = selection.selectedBrand ?? brands[0] ?? null
+  const allLayouts = layoutsForLoai(loaiId)
+  const styleOptions = stylesForLoai(loaiId)
+  const layouts = layoutsForLoaiStyle(loaiId, layoutStyle)
+  const activeLayout =
+    layoutById(selection.layoutId) ?? layouts[0] ?? null
+
+  useEffect(() => {
+    setLayoutStyle('all')
+  }, [loaiId])
+
+  useEffect(() => {
+    const nextLayout = defaultLayoutId(loaiId)
+    if (!loaiId || !nextLayout) return
+    const stillValid = layoutsForLoai(loaiId).some(
+      (layout) => layout.id === selection.layoutId
+    )
+    if (!stillValid) {
+      patchSelection({ layoutId: nextLayout })
+    }
+  }, [loaiId, selection.layoutId, patchSelection])
 
   function openCreate() {
     setEditing(emptyBrandDraft())
@@ -58,7 +90,7 @@ export function BrandPicker() {
     if (!brand.custom && !brand.path?.includes('custom')) {
       // still allow removing user-overridden copies stored as custom
     }
-    if (!window.confirm(`Xóa thương hiệu «${brand.name}»?`)) return
+    if (!window.confirm(`Xóa mẫu «${brand.name}»?`)) return
     removeBrand(brand.id)
     const customs = loadCustomBrands().filter((b) => b.id !== brand.id)
     saveCustomBrands(customs)
@@ -68,173 +100,206 @@ export function BrandPicker() {
   }
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight text-slate-50">
-            Thương hiệu
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Preset sẵn — palette, font, tone. Sửa để thêm logo và tối đa 3 ảnh
-            (cơ sở / sản phẩm). Chúng sẽ dán vào trang thiết kế.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950 hover:bg-cyan-400"
-        >
-          <Plus className="size-4" aria-hidden />
-          Thêm thương hiệu
-        </button>
+    <div className="space-y-6">
+      <header>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-50">
+          Bố cục của «{loaiName}»
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm text-slate-400">
+          Loại đã chọn → chọn style xếp chữ (chữ lớn, đánh số, ảnh, tạp chí…) →
+          bộ màu chỉ nhuộm lên khung đó.
+        </p>
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        <FilterChip
-          active={industryFilter === 'all'}
-          onClick={() => setIndustryFilter('all')}
-          label="Tất cả ngành"
-        />
-        {INDUSTRIES.map((id) => (
+      <section className="space-y-2">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+            Style trong loại này
+          </p>
+          <p className="text-xs text-slate-400">
+            {allLayouts.length} bố cục · lọc theo cách xếp chữ
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
           <FilterChip
-            key={id}
-            active={industryFilter === id}
-            onClick={() => setIndustryFilter(id)}
-            label={BRAND_INDUSTRY_LABELS[id]}
+            active={layoutStyle === 'all'}
+            onClick={() => setLayoutStyle('all')}
+            label={`Tất cả style (${allLayouts.length})`}
           />
-        ))}
-      </div>
-
-      {assetsLoading ? (
-        <p className="text-sm text-slate-500">Đang tải…</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((brand, index) => {
-            const selected = selection.selectedBrand?.id === brand.id
+          {styleOptions.map((id) => {
+            const count = layoutsForLoaiStyle(loaiId, id).length
             return (
-              <motion.article
-                key={brand.id}
+              <FilterChip
+                key={id}
+                active={layoutStyle === id}
+                onClick={() => setLayoutStyle(id)}
+                label={`${LAYOUT_STYLE_LABELS[id]} (${count})`}
+              />
+            )
+          })}
+        </div>
+      </section>
+
+      {layouts.length === 0 ? (
+        <p className="text-sm text-slate-500">
+          Loại này chưa có bố cục — sẽ dùng mẫu mặc định.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {layouts.map((layout, index) => {
+            const selected = activeLayout?.id === layout.id
+            return (
+              <motion.button
+                key={layout.id}
+                type="button"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(index * 0.03, 0.2) }}
+                transition={{ delay: Math.min(index * 0.04, 0.2) }}
+                onClick={() =>
+                  patchSelection({
+                    layoutId: layout.id,
+                    selectedBrand: activeBrand,
+                  })
+                }
                 className={cn(
-                  'relative overflow-hidden rounded-2xl border p-4 backdrop-blur-md transition-shadow',
+                  'cursor-pointer rounded-2xl border p-3 text-left transition-shadow',
                   selected
                     ? 'border-cyan-400/55 bg-slate-900/80 shadow-[0_0_24px_rgba(34,211,238,0.12)]'
-                    : 'border-slate-800 bg-slate-950/60'
+                    : 'border-slate-800 bg-slate-950/60 hover:border-slate-600'
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => patchSelection({ selectedBrand: brand })}
-                  className="w-full cursor-pointer text-left"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      {brand.logoDataUrl && (
-                        <img
-                          src={brand.logoDataUrl}
-                          alt=""
-                          className="mt-0.5 h-9 w-auto max-w-[3.5rem] rounded-md bg-white object-contain p-0.5"
-                        />
-                      )}
-                      <div>
-                      <p className="text-base font-semibold text-slate-50">
-                        {brand.name}
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-cyan-400/80">
-                        {BRAND_INDUSTRY_LABELS[brand.industry]}
-                      </p>
-                      </div>
-                    </div>
-                    {selected && (
-                      <span className="flex size-7 items-center justify-center rounded-full bg-cyan-500 text-slate-950">
-                        <Check className="size-4" aria-hidden />
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mb-3 line-clamp-2 text-xs text-slate-400">
-                    {brand.description || 'Bộ nhận diện'}
-                  </p>
-
-                  {/* Palette swatches */}
-                  <div className="mb-3 flex items-center gap-1.5" aria-label="Bảng màu">
-                    {(
-                      [
-                        brand.palette.primary,
-                        brand.palette.secondary,
-                        brand.palette.accent,
-                        brand.palette.background,
-                        brand.palette.text,
-                      ] as string[]
-                    ).map((c, i) => (
-                      <span
-                        key={`${brand.id}-c-${i}`}
-                        title={c}
-                        className="size-6 rounded-md ring-1 ring-white/15"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="space-y-1.5 text-[11px] text-slate-400">
-                    <p className="flex items-center gap-1.5">
-                      <Type className="size-3.5 text-slate-500" aria-hidden />
-                      <span>
-                        <span className="text-slate-300">{brand.typography.heading}</span>
-                        {' / '}
-                        {brand.typography.body}
-                      </span>
-                    </p>
-                    <p className="flex items-start gap-1.5">
-                      <Volume2 className="mt-0.5 size-3.5 shrink-0 text-slate-500" aria-hidden />
-                      <span className="line-clamp-2">{brand.voice.tone || '—'}</span>
-                    </p>
-                    {brand.voice.keywords.length > 0 && (
-                      <p className="flex flex-wrap gap-1 pt-1">
-                        {brand.voice.keywords.slice(0, 4).map((k) => (
-                          <span
-                            key={k}
-                            className="rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300"
-                          >
-                            {k}
-                          </span>
-                        ))}
-                      </p>
-                    )}
-                  </div>
-                </button>
-
-                <div className="mt-3 flex gap-2 border-t border-slate-800/80 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(brand)}
-                    className="inline-flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 hover:border-slate-500"
-                  >
-                    <Pencil className="size-3.5" aria-hidden />
-                    Sửa
-                  </button>
-                  {brand.custom && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(brand)}
-                      className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs text-red-300 hover:bg-red-500/10"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden />
-                    </button>
+                <div className="relative mb-3">
+                  {activeBrand ? (
+                    <LayoutPreview layout={layout} brand={activeBrand} />
+                  ) : (
+                    <div className="aspect-square rounded-lg bg-slate-900" />
+                  )}
+                  {selected && (
+                    <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-cyan-500 text-slate-950">
+                      <Check className="size-4" aria-hidden />
+                    </span>
                   )}
                 </div>
-              </motion.article>
+                <p className="text-sm font-semibold text-slate-50">{layout.name}</p>
+                <p className="mt-0.5 text-[10px] font-medium text-cyan-400/80">
+                  {LAYOUT_STYLE_LABELS[styleOf(layout)]}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
+                  {layout.blurb}
+                </p>
+              </motion.button>
             )
           })}
         </div>
       )}
 
+      <section className="space-y-2">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              Màu, chữ, logo
+            </p>
+            <p className="text-xs text-slate-400">
+              Đổi bộ màu để xem bố cục đổi theo — chưa phải nội dung thật.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={openCreate}
+            className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-700 px-3 text-xs font-medium text-slate-200 hover:border-slate-500"
+          >
+            <Plus className="size-3.5" aria-hidden />
+            Thêm bộ màu
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <FilterChip
+            active={industryFilter === 'all'}
+            onClick={() => setIndustryFilter('all')}
+            label="Tất cả"
+          />
+          {INDUSTRIES.map((id) => (
+            <FilterChip
+              key={id}
+              active={industryFilter === id}
+              onClick={() => setIndustryFilter(id)}
+              label={BRAND_INDUSTRY_LABELS[id]}
+            />
+          ))}
+        </div>
+        {assetsLoading ? (
+          <p className="text-sm text-slate-500">Đang tải…</p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {filtered.map((brand) => {
+              const selected = selection.selectedBrand?.id === brand.id
+              return (
+                <div
+                  key={brand.id}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1 rounded-xl border px-1.5 py-1',
+                    selected
+                      ? 'border-cyan-400/55 bg-cyan-500/10'
+                      : 'border-slate-800 bg-slate-950/60'
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => patchSelection({ selectedBrand: brand })}
+                    className="flex min-h-10 cursor-pointer items-center gap-2 px-1.5 text-left"
+                  >
+                    <span className="flex -space-x-1" aria-hidden>
+                      {[brand.palette.primary, brand.palette.accent, brand.palette.secondary].map(
+                        (c) => (
+                          <span
+                            key={c}
+                            className="size-4 rounded-full ring-2 ring-slate-950"
+                            style={{ backgroundColor: c }}
+                          />
+                        )
+                      )}
+                    </span>
+                    <span>
+                      <span className="block text-xs font-semibold text-slate-100">
+                        {brand.name}
+                      </span>
+                      <span className="block text-[10px] text-slate-500">
+                        {brand.typography.heading}
+                      </span>
+                    </span>
+                    {selected && <Check className="size-3.5 text-cyan-300" aria-hidden />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(brand)}
+                    className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-slate-800 hover:text-slate-200"
+                    aria-label={`Sửa ${brand.name}`}
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                  {brand.custom && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(brand)}
+                      className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-300"
+                      aria-label={`Xóa ${brand.name}`}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
       <AnimatePresence>
         {editing && (
           <BrandEditorModal
             brand={editing}
+            frame={frame}
+            layout={activeLayout}
             onChange={setEditing}
             onClose={() => setEditing(null)}
             onSave={() => persist(editing)}
@@ -272,11 +337,15 @@ function FilterChip({
 
 function BrandEditorModal({
   brand,
+  frame,
+  layout,
   onChange,
   onClose,
   onSave,
 }: {
   brand: StudioBrand
+  frame: PreviewFrame
+  layout: StudioLayout | null
   onChange: (b: StudioBrand) => void
   onClose: () => void
   onSave: () => void
@@ -292,7 +361,7 @@ function BrandEditorModal({
       exit={{ opacity: 0 }}
       role="dialog"
       aria-modal
-      aria-label="Chỉnh sửa thương hiệu"
+      aria-label="Chỉnh sửa mẫu"
     >
       <motion.div
         initial={{ y: 24, opacity: 0 }}
@@ -302,7 +371,7 @@ function BrandEditorModal({
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-50">
-            {brand.custom ? 'Thương hiệu tùy chỉnh' : 'Chỉnh sửa thương hiệu'}
+            {brand.custom ? 'Mẫu tùy chỉnh' : 'Chỉnh sửa mẫu'}
           </h3>
           <button
             type="button"
@@ -315,7 +384,15 @@ function BrandEditorModal({
         </div>
 
         <div className="space-y-3">
-          <Field label="Tên thương hiệu *">
+          {layout ? (
+            <LayoutPreview layout={layout} brand={brand} large />
+          ) : (
+            <LookPreview brand={brand} frame={frame} />
+          )}
+          <p className="text-[11px] text-slate-500">
+            Đổi màu / font / logo ở dưới — khung bố cục phía trên đổi theo ngay.
+          </p>
+          <Field label="Tên mẫu *">
             <input
               className={inputClass}
               value={brand.name}
@@ -479,7 +556,7 @@ function BrandEditorModal({
             disabled={!brand.name.trim()}
             className="min-h-11 cursor-pointer rounded-xl bg-cyan-500 px-4 text-sm font-semibold text-slate-950 disabled:opacity-40"
           >
-            Lưu thương hiệu
+            Lưu mẫu
           </button>
         </div>
       </motion.div>

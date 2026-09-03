@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { TemplateMeta } from '../api/engine'
+import { defaultLayoutId } from '../lib/layoutCatalog'
 import {
   catalogById,
   defaultsForCatalog,
@@ -102,7 +103,7 @@ export function TemplateGallery() {
               ? TEMPLATE_FORMAT_NOTE.social
               : templateFilter === 'video'
                 ? TEMPLATE_FORMAT_NOTE.video
-                : 'Chữ to = file xuất. Ảnh/slide lấy layout từ html-anything; video từ html-video; màu brand từ open-design. Không phải khung chữ trơn.'}
+                : 'Bước này chọn loại file (ảnh, video, slide, PDF). Bước sau chọn mẫu — xem trước màu và chữ trên đúng khổ đó.'}
           </p>
         </div>
         <div className="relative w-full max-w-sm">
@@ -182,6 +183,7 @@ export function TemplateGallery() {
                       const seeded = defaultsForCatalog(tpl)
                       patchSelection({
                         selectedTemplate: tpl,
+                        layoutId: defaultLayoutId(tpl.id),
                         contentType: templateTypeToContentType(
                           tpl.type,
                           seeded.fieldValues

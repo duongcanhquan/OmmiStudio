@@ -24,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'create',
     label: 'Studio',
-    hint: 'Mẫu → thương hiệu → nội dung',
+    hint: 'Loại → mẫu → nội dung',
     icon: PlusCircle,
   },
   {
@@ -35,8 +35,8 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'assets',
-    label: 'Thương hiệu',
-    hint: 'Logo, màu, font, tone',
+    label: 'Mẫu',
+    hint: 'Màu, chữ, logo — diện mạo file',
     icon: Palette,
   },
   {

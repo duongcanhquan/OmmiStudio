@@ -64,6 +64,7 @@ export interface GeneratePayload {
   voiceRegion?: VoiceRegion
   templateId?: string
   templateType?: TemplateType
+  layoutId?: string
   brandId?: string
   motionId?: string
   publishTarget?: PublishTarget
@@ -131,6 +132,7 @@ export async function generateContent(
     voiceRegion: payload.voiceRegion ?? 'south',
     templateId: payload.templateId,
     templateType: payload.templateType,
+    layoutId: payload.layoutId,
     brandId: payload.brandId,
     motionId: payload.motionId,
     publishTarget: payload.publishTarget ?? 'local',
@@ -150,6 +152,7 @@ export async function generatePreview(
     type: payload.type,
     templateId: payload.templateId,
     templateType: payload.templateType,
+    layoutId: payload.layoutId,
     brandId: payload.brandId,
     motionId: payload.motionId,
     fieldValues: payload.fieldValues,
@@ -163,6 +166,7 @@ export async function generatePreview(
 export async function normalizeScriptForm(payload: {
   templateType: TemplateType
   templateId?: string
+  layoutId?: string
   brief: string
   fieldValues?: Record<string, string>
   parts?: ScriptPart[]
@@ -175,7 +179,15 @@ export async function normalizeScriptForm(payload: {
   message?: string
   error?: string
 }> {
-  const { data } = await engineApi.post('/script/normalize', payload)
+  const { data } = await engineApi.post('/script/normalize', {
+    templateType: payload.templateType,
+    templateId: payload.templateId,
+    layoutId: payload.layoutId,
+    brief: payload.brief,
+    fieldValues: payload.fieldValues,
+    parts: payload.parts,
+    brandName: payload.brandName,
+  })
   return data
 }
 

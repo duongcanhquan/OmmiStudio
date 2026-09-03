@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { skillBindFor } from '../config/studio-skills';
+import { resolveSkillBind } from '../config/studio-layouts';
 import { injectVietnameseFonts } from '../config/brand-assets';
 import {
   resolveBrandLook,
@@ -30,8 +30,11 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function videoTemplateIdFor(templateId?: string): string | null {
-  const bind = skillBindFor(templateId);
+export function videoTemplateIdFor(
+  templateId?: string,
+  layoutId?: string
+): string | null {
+  const bind = resolveSkillBind(templateId, layoutId);
   return bind?.videoTemplateId ?? null;
 }
 
@@ -298,6 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 export async function fillHtmlVideoTemplate(input: {
   templateId?: string;
+  layoutId?: string;
   videoTemplateId?: string;
   title: string;
   parts: ScriptPart[];
@@ -308,9 +312,11 @@ export async function fillHtmlVideoTemplate(input: {
   scenes?: VideoSceneCopy[];
   media?: BrandMedia | null;
 }): Promise<string | null> {
-  const bind = skillBindFor(input.templateId);
+  const bind = resolveSkillBind(input.templateId, input.layoutId);
   const videoId =
-    input.videoTemplateId || bind?.videoTemplateId || videoTemplateIdFor(input.templateId);
+    input.videoTemplateId ||
+    bind?.videoTemplateId ||
+    videoTemplateIdFor(input.templateId, input.layoutId);
   if (!videoId) return null;
   const sourcePath = await resolveTemplateHtml(videoId);
   if (!sourcePath) return null;

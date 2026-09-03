@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { skillBindFor, type SkillCapture } from '../config/studio-skills';
+import { resolveSkillBind } from '../config/studio-layouts';
+import { type SkillCapture } from '../config/studio-skills';
 import {
   resolveBrandLook,
   type BrandLook,
@@ -34,9 +35,10 @@ export async function readSkillBrief(skillId: string): Promise<string> {
 }
 
 export async function skillBriefForTemplate(
-  templateId?: string
+  templateId?: string,
+  layoutId?: string
 ): Promise<string> {
-  const bind = skillBindFor(templateId);
+  const bind = resolveSkillBind(templateId, layoutId);
   if (!bind) return '';
   const brief = await readSkillBrief(bind.skillId);
   if (!brief) return '';
@@ -298,6 +300,7 @@ export function isolateSkillCard(html: string, index1: number): string {
 
 export async function fillStudioSkillHtml(input: {
   templateId?: string;
+  layoutId?: string;
   title: string;
   parts: ScriptPart[];
   brandId?: string;
@@ -305,7 +308,7 @@ export async function fillStudioSkillHtml(input: {
   palette?: BrandPaletteInput | null;
   media?: BrandMedia | null;
 }): Promise<string | null> {
-  const bind = skillBindFor(input.templateId);
+  const bind = resolveSkillBind(input.templateId, input.layoutId);
   if (!bind) return null;
   const examplePath = path.join(SKILLS_DIR, bind.skillId, 'example.html');
   try {

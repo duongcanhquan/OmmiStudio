@@ -4,8 +4,8 @@ import { resolveAssetUrl } from '../api/engine'
 import { useStudio, type StudioStep } from './StudioContext'
 
 const STEPS: { id: StudioStep; label: string }[] = [
-  { id: 1, label: 'Mẫu' },
-  { id: 2, label: 'Thương hiệu' },
+  { id: 1, label: 'Loại' },
+  { id: 2, label: 'Bố cục' },
   { id: 3, label: 'Kịch bản' },
   { id: 4, label: 'File' },
 ]

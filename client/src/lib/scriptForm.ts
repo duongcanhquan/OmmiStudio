@@ -371,7 +371,7 @@ export function formIsReady(
 ): { ok: boolean; missing: string[] } {
   const missing: string[] = []
   if (!type) {
-    return { ok: false, missing: ['Mẫu'] }
+    return { ok: false, missing: ['Loại'] }
   }
   if (!fieldValues.title?.trim()) missing.push('Tiêu đề sản phẩm')
   if (!parts.some(partHasContent)) missing.push('Ít nhất một phần có nội dung')

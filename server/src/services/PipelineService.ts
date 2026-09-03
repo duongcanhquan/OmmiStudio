@@ -42,7 +42,7 @@ import {
   fillStudioSkillHtml,
   isolateSkillCard,
 } from './HtmlSkillService';
-import { skillBindFor } from '../config/studio-skills';
+import { resolveSkillBind } from '../config/studio-layouts';
 import { zipFiles } from './LocalPngService';
 import { renderBrandedPdf } from './PdfService';
 import {
@@ -72,6 +72,7 @@ export interface PipelineOptions {
   type: ContentType;
   voiceRegion: VietnameseVoiceRegion;
   templateId?: string;
+  layoutId?: string;
   brandId?: string;
   /** Preferred motion recipe id / motionType applied across scenes */
   preferredMotion?: string;
@@ -388,6 +389,7 @@ export async function runVideoPipeline(
     prompt,
     voiceRegion = 'south',
     templateId,
+    layoutId,
     brandId,
     preferredMotion,
     publishTarget = 'local',
@@ -467,6 +469,7 @@ export async function runVideoPipeline(
     }));
     const designedHtml = await fillHtmlVideoTemplate({
       templateId,
+      layoutId,
       title: script.title || fieldValues.title || 'LYON Studio',
       parts: sceneParts,
       brandId,
@@ -534,6 +537,7 @@ export async function runVideoPipeline(
         for (const [index, scene] of script.scenes.entries()) {
           const sceneHtml = await fillHtmlVideoTemplate({
             templateId,
+            layoutId,
             title: scene.visualText || script.title || 'LYON Studio',
             parts: [
               {
@@ -682,6 +686,7 @@ export async function runPreviewPipeline(
     prompt,
     type,
     templateId,
+    layoutId,
     brandId,
     preferredMotion,
     templateType,
@@ -731,6 +736,7 @@ export async function runPreviewPipeline(
         }));
     const videoPreview = await fillHtmlVideoTemplate({
       templateId,
+      layoutId,
       title: previewTitle,
       parts: previewBodyParts,
       brandId,
@@ -746,6 +752,7 @@ export async function runPreviewPipeline(
     });
     const skillPreview = await fillStudioSkillHtml({
       templateId,
+      layoutId,
       title: previewTitle,
       parts: previewBodyParts,
       brandId,
@@ -879,6 +886,7 @@ export async function runGeneratePipeline(
     prompt = '',
     type,
     templateId,
+    layoutId,
     brandId,
     preferredMotion,
     publishTarget = 'local',
@@ -926,6 +934,7 @@ export async function runGeneratePipeline(
     const htmlPath = path.join(workspacePath, htmlName);
     const skillHtml = await fillStudioSkillHtml({
       templateId,
+      layoutId,
       title,
       parts: parts.length
         ? parts
@@ -1060,6 +1069,7 @@ async function runImagePipeline(
     prompt = '',
     type,
     templateId,
+    layoutId,
     brandId,
     preferredMotion,
     publishTarget = 'local',
@@ -1102,6 +1112,7 @@ async function runImagePipeline(
         }));
     const skillHtml = await fillStudioSkillHtml({
       templateId,
+      layoutId,
       title,
       parts: imageParts,
       brandId,
@@ -1130,7 +1141,7 @@ async function runImagePipeline(
     let artifactPath = previewHtml;
     let fileName = 'bai-dang.html';
     const size = parseSocialSize(fieldValues);
-    const capture = skillBindFor(templateId)?.capture;
+    const capture = resolveSkillBind(templateId, layoutId)?.capture;
     if (skillHtml && hasChromeCapture() && capture === 'all-cards') {
       const total = countSkillCards(skillHtml);
       const pngs: string[] = [];

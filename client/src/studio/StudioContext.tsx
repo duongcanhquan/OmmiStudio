@@ -27,6 +27,8 @@ export type { PublishTarget }
 export interface StudioSelection {
   selectedTemplate: TemplateMeta | null
   selectedBrand: StudioBrand | null
+  /** Bố cục nhìn thấy được — skill + chỗ chữ / số / CTA */
+  layoutId?: string
   selectedMotion: MotionRecipe | null
   prompt: string
   /** Brief sáng tạo — AI viết theo ý này + mẫu + brand */

@@ -18,6 +18,7 @@ import {
   mergeBrandSources,
   type StudioBrand,
 } from '../lib/brands'
+import { defaultLayoutId, layoutById } from '../lib/layoutCatalog'
 import {
   CURATED_STUDIO_TEMPLATES,
   defaultsForCatalog,
@@ -52,6 +53,7 @@ interface StudioPageProps {
 const INITIAL_SELECTION: StudioSelection = {
   selectedTemplate: null,
   selectedBrand: null,
+  layoutId: undefined,
   selectedMotion: null,
   prompt: '',
   aiBrief: '',
@@ -120,9 +122,14 @@ function brandMediaFrom(selection: StudioSelection) {
 function resolvePrompt(selection: StudioSelection): string {
   const type = selection.selectedTemplate?.type ?? 'deck'
   const brand = selection.selectedBrand
+  const layout =
+    layoutById(selection.layoutId) ??
+    layoutById(defaultLayoutId(selection.selectedTemplate?.id))
   return buildStudioPrompt({
     templateType: type,
     templateName: selection.selectedTemplate?.name,
+    layoutName: layout?.name,
+    layoutHint: layout?.blurb,
     brand: brand
       ? {
           name: brand.name,
@@ -265,6 +272,9 @@ export function StudioPage({
           return {
             ...prev,
             selectedTemplate: nextTemplate,
+            layoutId:
+              prev.layoutId ??
+              defaultLayoutId(nextTemplate?.id),
             selectedBrand: prev.selectedBrand ?? merged[0] ?? null,
             selectedMotion: prev.selectedMotion,
             contentType: prev.selectedTemplate
@@ -332,7 +342,11 @@ export function StudioPage({
 
   const canGoNext = useMemo(() => {
     if (step === 1) return Boolean(selection.selectedTemplate)
-    if (step === 2) return Boolean(selection.selectedBrand)
+    if (step === 2)
+      return Boolean(
+        selection.selectedBrand &&
+          (selection.layoutId || defaultLayoutId(selection.selectedTemplate?.id))
+      )
     if (step === 3) {
       // Tab «đã có kịch bản» hoặc sau AI: đủ field mẫu + có nội dung
       return fieldsComplete(selection) && selectionHasContent(selection)
@@ -372,6 +386,9 @@ export function StudioPage({
           type: sel.contentType,
           templateId: sel.selectedTemplate?.id,
           templateType: sel.selectedTemplate?.type,
+          layoutId:
+            sel.layoutId ??
+            defaultLayoutId(sel.selectedTemplate?.id),
           brandId: sel.selectedBrand?.id,
           motionId: sel.selectedMotion?.motionType || sel.selectedMotion?.id,
           fieldValues: sel.fieldValues,
@@ -410,6 +427,9 @@ export function StudioPage({
       const response = await normalizeScriptForm({
         templateType: selection.selectedTemplate.type,
         templateId: selection.selectedTemplate.id,
+        layoutId:
+          selection.layoutId ??
+          defaultLayoutId(selection.selectedTemplate.id),
         brief: [selection.aiBrief, selection.scriptNotes]
           .filter(Boolean)
           .join('\n'),
@@ -506,6 +526,9 @@ export function StudioPage({
               : undefined,
           templateId: selection.selectedTemplate?.id,
           templateType: selection.selectedTemplate?.type,
+          layoutId:
+            selection.layoutId ??
+            defaultLayoutId(selection.selectedTemplate?.id),
           brandId: selection.selectedBrand?.id,
           motionId:
             selection.selectedMotion?.motionType ||
@@ -624,13 +647,13 @@ export function StudioPage({
                   LYON Studio
                 </p>
                 <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-                  {step === 1 && '1. Chọn mẫu'}
-                  {step === 2 && '2. Chọn thương hiệu'}
+                  {step === 1 && '1. Chọn loại sản phẩm'}
+                  {step === 2 && '2. Bố cục theo style của loại'}
                   {step === 3 && '3. Kịch bản / nội dung'}
                   {step === 4 && '4. Đang xử lý & tải file'}
                 </h1>
                 <p className="mt-1 hidden text-xs text-slate-500 sm:block">
-                  Kịch bản chuẩn xong → hệ thống tự dựng file → tải về máy
+                  Loại → bố cục theo style của loại đó → nội dung → file
                 </p>
               </div>
               <ol className="flex items-center gap-1.5" aria-label="Tiến trình">

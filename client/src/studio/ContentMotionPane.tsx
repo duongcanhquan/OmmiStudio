@@ -24,6 +24,7 @@ import {
   type RequiredContentField,
   type TemplateType,
 } from '../lib/templateTypes'
+import { layoutById } from '../lib/layoutCatalog'
 import { catalogById } from '../lib/templateCatalog'
 import { formIsReady } from '../lib/scriptForm'
 import { loadCustomBrands, saveCustomBrands } from '../lib/brands'
@@ -139,7 +140,7 @@ export function ContentMotionPane() {
         </p>
         {(() => {
           const note = catalog
-            ? `Repo html-anything vẽ layout (skill «${catalog.skillId}») — Studio chỉ điền chữ tiếng Việt rồi Chrome chụp thành ${catalog.outputLabel}. Không phải khung FFmpeg trơn. Dành cho: ${catalog.purpose}.`
+            ? `Loại «${catalog.purpose}» → file ${catalog.outputLabel}. Hệ thống dựng trang thiết kế rồi điền chữ của bạn. Dán logo/ảnh nếu muốn; không bắt buộc.`
             : TEMPLATE_FORMAT_NOTE[templateType]
           return note ? (
             <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
@@ -153,7 +154,7 @@ export function ContentMotionPane() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            Mẫu đang dùng
+            Loại đang dùng
           </p>
           <p className="mt-0.5 text-sm font-medium text-cyan-200">
             {selection.selectedTemplate?.name ??
@@ -164,10 +165,11 @@ export function ContentMotionPane() {
         <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 px-4 py-3">
           <p className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
             <Palette className="size-3" aria-hidden />
-            Thương hiệu
+            Bố cục / màu
           </p>
           <p className="mt-0.5 text-sm font-medium text-slate-100">
-            {brand?.name ?? 'Chưa chọn — quay lại bước 2'}
+            {layoutById(selection.layoutId)?.name ?? 'Bố cục mặc định'}
+            {brand?.name ? ` · ${brand.name}` : ''}
           </p>
         </div>
       </div>
