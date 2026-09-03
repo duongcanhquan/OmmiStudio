@@ -17,6 +17,10 @@ build/
 server/workspaces/*
 !server/workspaces/.gitkeep
 
+# Bundled FFmpeg binary (downloaded by ffmpeg-static)
+server/bin/ffmpeg
+server/bin/ffmpeg.exe
+
 # Vendored nexu-io CLIs (cloned by install:tools / setup)
 server/tools/*
 !server/tools/.gitkeep

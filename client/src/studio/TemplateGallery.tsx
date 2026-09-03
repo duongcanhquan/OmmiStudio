@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { TemplateMeta } from '../api/engine'
+import { defaultMetaValues, defaultParts } from '../lib/scriptForm'
 import {
   TEMPLATE_CATEGORY_GROUPS,
   TEMPLATE_TYPE_ICONS,
@@ -152,7 +153,11 @@ export function TemplateGallery() {
                       patchSelection({
                         selectedTemplate: tpl,
                         contentType: templateTypeToContentType(tpl.type),
-                        fieldValues: defaultFieldValues(tpl.type),
+                        fieldValues: {
+                          ...defaultFieldValues(tpl.type),
+                          ...defaultMetaValues(tpl.type),
+                        },
+                        parts: defaultParts(tpl.type),
                       })
                     }
                   />

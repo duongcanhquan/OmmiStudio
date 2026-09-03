@@ -7,10 +7,8 @@ import type {
   VoiceRegion,
 } from '../api/engine'
 import type { StudioBrand } from '../lib/brands'
-import {
-  hasUserAuthoredContent,
-  type TemplateFilter,
-} from '../lib/templateTypes'
+import { formIsReady, type ScriptPart } from '../lib/scriptForm'
+import { type TemplateFilter } from '../lib/templateTypes'
 
 export type StudioStep = 1 | 2 | 3 | 4
 
@@ -37,19 +35,18 @@ export interface StudioSelection {
   scriptNotes: string
   richHtml: string
   fieldValues: Record<string, string>
+  parts: ScriptPart[]
   voiceRegion: VoiceRegion
   contentType: ContentType
 }
 
-/** Có nội dung người viết — bỏ qua thông số mẫu đã điền sẵn. */
+/** Form đủ tiêu đề + ít nhất một phần có chữ. */
 export function selectionHasContent(selection: StudioSelection): boolean {
-  return hasUserAuthoredContent(selection.selectedTemplate?.type, {
-    prompt: selection.prompt,
-    aiBrief: selection.aiBrief,
-    scriptNotes: selection.scriptNotes,
-    richHtml: selection.richHtml,
-    fieldValues: selection.fieldValues,
-  })
+  return formIsReady(
+    selection.selectedTemplate?.type,
+    selection.fieldValues,
+    selection.parts
+  ).ok
 }
 
 export interface StudioResult {

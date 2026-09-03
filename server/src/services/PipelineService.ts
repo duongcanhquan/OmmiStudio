@@ -24,6 +24,15 @@ import {
 } from './VoiceService';
 import { workspaceService } from './WorkspaceService';
 import { saveProjectMeta } from './ProjectService';
+import { renderLocalMp4 } from './LocalMp4Service';
+import { buildBrandedHtml } from './BrandDocumentService';
+import { renderBrandedPdf } from './PdfService';
+import {
+  exportKindForType,
+  parseParts,
+  partsToVideoScript,
+  type ScriptPart,
+} from './scriptForm';
 
 export interface CliStepLog {
   stdout: string;
@@ -34,7 +43,7 @@ export interface CliStepLog {
 }
 
 export interface PipelineOptions {
-  prompt: string;
+  prompt?: string;
   type: ContentType;
   voiceRegion: VietnameseVoiceRegion;
   templateId?: string;
@@ -46,6 +55,9 @@ export interface PipelineOptions {
    * drive = upload Google Drive (cần Settings Drive)
    */
   publishTarget?: 'local' | 'drive';
+  templateType?: string;
+  fieldValues?: Record<string, string>;
+  parts?: ScriptPart[];
 }
 
 export interface PipelineResult {
@@ -352,10 +364,17 @@ export async function runVideoPipeline(
     brandId,
     preferredMotion,
     publishTarget = 'local',
+    fieldValues = {},
+    parts: rawParts,
   } = options;
 
-  if (!prompt?.trim()) {
-    throw new Error('runVideoPipeline: prompt is required.');
+  const parts = parseParts(rawParts);
+  const aspect = fieldValues.aspect ? `Tỷ lệ khung hình: ${fieldValues.aspect}` : '';
+  const durationHint = Number(fieldValues.duration);
+  const effectivePrompt = [prompt?.trim(), aspect].filter(Boolean).join('\n');
+
+  if (!effectivePrompt && parts.length === 0) {
+    throw new Error('runVideoPipeline: cần form từng phần hoặc kịch bản.');
   }
 
   const workspacePath = path.resolve(await workspaceService.createWorkspace());
@@ -364,10 +383,18 @@ export async function runVideoPipeline(
   let keepWorkspace = false;
 
   try {
-    let script = await resolveVideoScript(
-      enrichPrompt(prompt, templateId, brandId, preferredMotion),
-      'video'
-    );
+    let script =
+      parts.length > 0
+        ? partsToVideoScript(
+            fieldValues.title || '',
+            parts,
+            Number.isFinite(durationHint) ? durationHint : undefined
+          )
+        : await resolveVideoScript(
+            effectivePrompt,
+            'video',
+            enrichPrompt(effectivePrompt, templateId, brandId, preferredMotion)
+          );
     script = applyPreferredMotion(script, preferredMotion);
     await workspaceService.writeFile(workspacePath, 'script.json', {
       ...script,
@@ -406,86 +433,45 @@ export async function runVideoPipeline(
     const indexHtmlPath = path.join(workspacePath, 'index.html');
     await fs.writeFile(
       indexHtmlPath,
-      buildBaseHtml(script, prompt, templateId, brandId),
+      buildBaseHtml(script, effectivePrompt, templateId, brandId),
       'utf-8'
     );
 
-    const layoutHtml = path.join(workspacePath, 'layout.html');
-    const motionHtml = path.join(workspacePath, 'motion.html');
     const finalMp4 = path.join(workspacePath, 'final.mp4');
     const previewHtml = path.join(workspacePath, 'preview.html');
-
-    try {
-      cliLogs['html-anything'] = await runHtmlAnything(
-        indexHtmlPath,
-        layoutHtml,
-        workspacePath
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      cliLogs['html-anything'] = {
-        stdout: '',
-        stderr: message,
-        command: 'html-anything',
-        ok: false,
-        error: message,
-      };
-    }
-
-    const motionInput = (await fileExists(layoutHtml))
-      ? layoutHtml
-      : indexHtmlPath;
-
-    try {
-      cliLogs['motion-anything'] = await runMotionAnything(
-        motionInput,
-        motionHtml,
-        workspacePath
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      cliLogs['motion-anything'] = {
-        stdout: '',
-        stderr: message,
-        command: 'motion-anything',
-        ok: false,
-        error: message,
-      };
-    }
-
-    const videoInput = (await fileExists(motionHtml))
-      ? motionHtml
-      : motionInput;
-
-    try {
-      cliLogs['html-video'] = await runHtmlVideo(
-        videoInput,
-        audioDir,
-        finalMp4,
-        workspacePath
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      cliLogs['html-video'] = {
-        stdout: '',
-        stderr: message,
-        command: 'html-video',
-        ok: false,
-        error: message,
-      };
-    }
 
     let absoluteArtifact = finalMp4;
     let finalName = 'final.mp4';
     let degraded = false;
 
+    try {
+        await renderLocalMp4({
+          script,
+          outputPath: finalMp4,
+          audioDir,
+          prompt: effectivePrompt,
+          brandId,
+          preferredMotion,
+        });
+      cliLogs['local-mp4'] = {
+        stdout: 'Đã render MP4 chữ động (màu thương hiệu, chuyển động, nhạc nền).',
+        stderr: '',
+        command: 'ffmpeg-static',
+        ok: true,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      cliLogs['local-mp4'] = {
+        stdout: '',
+        stderr: message,
+        command: 'ffmpeg-static',
+        ok: false,
+        error: message,
+      };
+    }
+
     if (!(await fileExists(finalMp4))) {
-      const sourceHtml = (await fileExists(motionHtml))
-        ? motionHtml
-        : (await fileExists(layoutHtml))
-          ? layoutHtml
-          : indexHtmlPath;
-      await fs.copyFile(sourceHtml, previewHtml);
+      await fs.copyFile(indexHtmlPath, previewHtml);
       absoluteArtifact = previewHtml;
       finalName = 'preview.html';
       degraded = true;
@@ -505,12 +491,12 @@ export async function runVideoPipeline(
     keepWorkspace = true;
 
     await saveProjectMeta(workspacePath, {
-      title: script.title || prompt.slice(0, 80) || 'Video OmniStudio',
+      title: script.title || fieldValues.title || effectivePrompt.slice(0, 80) || 'Video OmniStudio',
       type: 'video',
       kind: 'final',
       templateId,
       brandId,
-      promptSnippet: prompt.slice(0, 200),
+      promptSnippet: effectivePrompt.slice(0, 200),
       createdAt: new Date().toISOString(),
       outputUrl: published.finalOutputPath,
       driveUrl: published.drive?.webViewLink ?? null,
@@ -561,8 +547,9 @@ export async function runPreviewPipeline(
 
   try {
     let script = await resolveVideoScript(
-      enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion),
-      type
+      prompt.trim(),
+      type,
+      enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion)
     );
     script = applyPreferredMotion(script, preferredMotion);
 
@@ -646,44 +633,85 @@ export async function runGeneratePipeline(
   options: PipelineOptions
 ): Promise<PipelineResult> {
   const {
-    prompt,
+    prompt = '',
     type,
     templateId,
     brandId,
     preferredMotion,
     publishTarget = 'local',
+    templateType,
+    fieldValues = {},
+    parts: rawParts,
   } = options;
 
-  if (type === 'video') {
+  const kind = exportKindForType(templateType);
+  if (type === 'video' || kind === 'video') {
     return runVideoPipeline(options);
   }
 
+  const parts = parseParts(rawParts);
   const workspacePath = path.resolve(await workspaceService.createWorkspace());
   let keepWorkspace = false;
 
   try {
-    let script = await resolveVideoScript(
-      enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion),
-      type
-    );
+    let script =
+      parts.length > 0
+        ? partsToVideoScript(fieldValues.title || '', parts)
+        : await resolveVideoScript(
+            prompt.trim(),
+            type,
+            enrichPrompt(prompt.trim(), templateId, brandId, preferredMotion)
+          );
     script = applyPreferredMotion(script, preferredMotion);
     await workspaceService.writeFile(workspacePath, 'script.json', {
       ...script,
       templateId,
       brandId,
       preferredMotion,
+      fieldValues,
+      parts,
     });
 
-    const fileName = type === 'poster' ? 'poster.html' : 'slides.html';
-    const htmlPath = path.join(workspacePath, fileName);
+    const title = fieldValues.title || script.title || 'OmniStudio';
+    const htmlName = type === 'poster' ? 'poster.html' : 'slides.html';
+    const htmlPath = path.join(workspacePath, htmlName);
     await fs.writeFile(
       htmlPath,
-      buildBaseHtml(script, prompt, templateId, brandId),
+      buildBrandedHtml({
+        title,
+        parts,
+        script,
+        prompt,
+        brandId,
+        mode: kind === 'pdf' ? 'print' : type === 'poster' ? 'poster' : 'slides',
+      }),
       'utf-8'
     );
 
+    let artifactPath = htmlPath;
+    let fileName = htmlName;
+    if (kind === 'pdf') {
+      fileName = 'document.pdf';
+      artifactPath = path.join(workspacePath, fileName);
+      await renderBrandedPdf({
+        title,
+        parts: parts.length
+          ? parts
+          : script.scenes.map((scene, index) => ({
+              id: `scene-${index + 1}`,
+              role: 'section',
+              title: scene.visualText,
+              body: scene.voiceoverText,
+            })),
+        outputPath: artifactPath,
+        brandId,
+        prompt,
+        paper: fieldValues.paper,
+      });
+    }
+
     const published = await publishArtifact(
-      htmlPath,
+      artifactPath,
       toPublicWorkspacePath(workspacePath, fileName),
       publishTarget
     );
@@ -691,7 +719,7 @@ export async function runGeneratePipeline(
     keepWorkspace = true;
 
     await saveProjectMeta(workspacePath, {
-      title: script.title || prompt.slice(0, 80) || 'Dự án OmniStudio',
+      title,
       type,
       kind: 'final',
       templateId,

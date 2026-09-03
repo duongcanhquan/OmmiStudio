@@ -7,6 +7,12 @@ import {
   getProviderDef,
   type LlmProviderId,
 } from '../config/llm-providers';
+import { KINETIC_MOTIONS, toScreenCopy } from './kineticCopy';
+import {
+  assertNormalizedForm,
+  type ScriptPart,
+  type StudioTemplateType,
+} from './scriptForm';
 
 export type ContentType = 'poster' | 'video' | 'slide';
 
@@ -142,8 +148,11 @@ function assertVideoScript(data: unknown): VideoScript {
     const s = scene as Record<string, unknown>;
 
     const sceneId = Number(s.sceneId ?? index + 1);
-    const visualText = String(s.visualText ?? '').trim();
     const voiceoverText = String(s.voiceoverText ?? '').trim();
+    const visualText = toScreenCopy(
+      String(s.visualText ?? '').trim() || voiceoverText,
+      typeof record.title === 'string' ? record.title : `Cảnh ${sceneId}`
+    );
     const motionType = String(s.motionType ?? 'fade-in').trim() || 'fade-in';
     const duration = Number(s.duration);
 
@@ -515,6 +524,7 @@ function extractUserStory(prompt: string): { title: string; body: string } {
       .replace(/^Constraints:[\s\S]*$/gm, '')
       .trim();
   }
+  body = body.replace(/\n(?:Ràng buộc|Constraints)\s*:[\s\S]*$/i, '').trim();
 
   if (!body) body = text;
   return { title: title || body.split('\n').find((l) => l.trim())?.slice(0, 80) || 'OmniStudio', body };
@@ -527,7 +537,14 @@ function splitStoryChunks(body: string): string[] {
       const t = line.trim();
       if (!t) return true;
       if (/^===/.test(t)) return false;
-      if (/^(Loại nội dung|Template ID|Brand |Constraints|Tỷ lệ|Độ phân giải|Nhịp|Hình thức âm thanh|Thời lượng|Số cảnh)\b/i.test(t)) {
+      if (
+        /^(Loại nội dung|Template ID|Brand |Constraints|Ràng buộc|Mã mẫu|Mã thương hiệu|Ưu tiên hiệu ứng|Tỷ lệ|Độ phân giải|Nhịp|Hình thức âm thanh|Thời lượng|Số cảnh)\b/i.test(
+          t
+        )
+      ) {
+        return false;
+      }
+      if (/^[•\-]\s*(Mã |Ưu tiên|Giữ giọng|Toàn bộ chữ)/i.test(t)) {
         return false;
       }
       return true;
@@ -611,13 +628,14 @@ export function buildLocalVideoScript(
       : 4;
 
   const scenes: VideoScene[] = parts.slice(0, 24).map((chunk, index) => {
-    const visualText = chunk.replace(/\s+/g, ' ').trim().slice(0, 400);
+    const spoken = chunk.replace(/\s+/g, ' ').trim().slice(0, 280);
+    const visualText = toScreenCopy(spoken, title || 'OmniStudio');
     return {
       sceneId: index + 1,
-      visualText: visualText || `${title} — phần ${index + 1}`,
-      voiceoverText: contentType === 'video' ? visualText : '',
-      motionType: index === 0 ? 'fade-in' : 'slide-up',
-      duration: perScene,
+      visualText,
+      voiceoverText: contentType === 'video' ? spoken || visualText : '',
+      motionType: KINETIC_MOTIONS[index % KINETIC_MOTIONS.length],
+      duration: Math.min(7, Math.max(4, perScene)),
     };
   });
 
@@ -637,14 +655,15 @@ function canCallConfiguredLlm(): boolean {
  */
 export async function resolveVideoScript(
   userPrompt: string,
-  contentType: ContentType
+  contentType: ContentType,
+  llmPrompt?: string
 ): Promise<VideoScript> {
   const local = buildLocalVideoScript(userPrompt, contentType);
   if (!canCallConfiguredLlm()) {
     return local;
   }
   try {
-    return await generateVideoScript(userPrompt, contentType);
+    return await generateVideoScript(llmPrompt ?? userPrompt, contentType);
   } catch {
     return local;
   }
@@ -712,10 +731,56 @@ export async function generateVideoScript(
   }
 }
 
+export async function normalizeStudioForm(input: {
+  templateType: StudioTemplateType;
+  brief: string;
+  fieldValues?: Record<string, string>;
+  parts?: ScriptPart[];
+  brandName?: string;
+}): Promise<{
+  title: string;
+  fieldValues: Record<string, string>;
+  parts: ScriptPart[];
+}> {
+  if (!canCallConfiguredLlm()) {
+    throw new Error(
+      'Chưa có API key. Điền từng ô form bằng tay, hoặc thêm key trong Cài đặt.'
+    );
+  }
+  const existing = (input.parts ?? [])
+    .map((part, index) => `${index + 1}. [${part.role}] ${part.title} — ${part.body}`)
+    .join('\n');
+  const system = [
+    'Bạn là biên tập OmniStudio. Chỉ tiếng Việt có dấu.',
+    'Điền đúng form JSON, không markdown.',
+    'Schema: {"title": string, "fieldValues": {"title": string}, "parts": [{"id": string, "role": "hook|body|cta|slide|section|item", "title": string, "body": string, "notes": string}]}',
+    'title và mỗi part.title/body phải ngắn, đúng loại mẫu.',
+    'Không bịa số liệu. Giữ ô user đã viết nếu hợp lý.',
+  ].join('\n');
+  const user = [
+    `Loại mẫu: ${input.templateType}`,
+    input.brandName ? `Thương hiệu: ${input.brandName}` : '',
+    `Brief / nháp:\n${input.brief.trim() || '(trống)'}`,
+    `Tiêu đề hiện có: ${input.fieldValues?.title || ''}`,
+    existing ? `Các phần hiện có:\n${existing}` : 'Chưa có phần.',
+    'Trả về JSON form đã điền.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const result = await completeChat({ system, user, preferJson: true });
+  if (!result.text?.trim()) {
+    throw new Error(`${result.providerLabel} không trả về form.`);
+  }
+  const parsed: unknown = JSON.parse(extractJsonPayload(result.text));
+  return assertNormalizedForm(parsed);
+}
+
 export const llmService = {
   generateVideoScript,
   resolveVideoScript,
   buildLocalVideoScript,
+  normalizeStudioForm,
   extractJsonPayload,
   testLlmConnection,
 };

@@ -3,3 +3,4 @@ packages:
   - "client"
 allowBuilds:
   esbuild: true
+  ffmpeg-static: true

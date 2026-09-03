@@ -6,6 +6,7 @@ import {
   htmlVideoCli,
   motionAnythingCli,
 } from '../config/nexu-tools';
+import { resolveFfmpegPath } from './LocalMp4Service';
 
 function commandExists(bin: string): boolean {
   const probe =
@@ -27,7 +28,7 @@ export function probeLocalRuntime() {
   const htmlAnything = fs.existsSync(htmlAnythingCli);
   const motionAnything = fs.existsSync(motionAnythingCli);
   const htmlVideo = fs.existsSync(htmlVideoCli);
-  const ffmpeg = commandExists('ffmpeg');
+  const ffmpeg = Boolean(resolveFfmpegPath());
   const edgeTts = edgeTtsReady();
 
   return {
@@ -38,8 +39,8 @@ export function probeLocalRuntime() {
     edgeTts,
     /** Đã có kịch bản → xuất HTML local, không cần LLM */
     llmNeededIfScriptExists: false,
-    /** MP4 đầy đủ cần html-video + ffmpeg */
-    mp4Ready: htmlVideo && ffmpeg,
+    /** MP4 chữ động: FFmpeg trên PATH hoặc ffmpeg-static */
+    mp4Ready: ffmpeg,
     htmlPreviewReady: true,
   };
 }

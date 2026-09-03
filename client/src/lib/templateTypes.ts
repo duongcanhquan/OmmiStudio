@@ -183,18 +183,37 @@ export function stripRichText(html: string): string {
 export function getMissingRequiredFields(
   type: TemplateType | undefined,
   values: Record<string, string>,
-  story?: { aiBrief?: string; richHtml?: string; scriptNotes?: string }
+  story?: {
+    aiBrief?: string
+    richHtml?: string
+    scriptNotes?: string
+    parts?: { title?: string; body?: string; notes?: string }[]
+  }
 ): RequiredContentField[] {
   if (!type) return []
-  const hasStory = Boolean(
-    story?.aiBrief?.trim() ||
-      story?.scriptNotes?.trim() ||
-      stripRichText(story?.richHtml ?? '')
+  const missing: RequiredContentField[] = []
+  if (!values.title?.trim()) {
+    missing.push({
+      key: 'title',
+      label: 'Tiêu đề sản phẩm',
+      placeholder: '',
+      required: true,
+    })
+  }
+  const hasPart = Boolean(
+    story?.parts?.some(
+      (part) => part.title?.trim() || part.body?.trim() || part.notes?.trim()
+    )
   )
-  if (hasStory) return []
-  return (REQUIRED_FIELDS_BY_TYPE[type] ?? []).filter(
-    (field) => isFieldRequired(field) && !(values[field.key] ?? '').trim()
-  )
+  if (!hasPart) {
+    missing.push({
+      key: 'parts',
+      label: 'Ít nhất một phần có nội dung',
+      placeholder: '',
+      required: true,
+    })
+  }
+  return missing
 }
 
 export function hasUserAuthoredContent(
@@ -996,7 +1015,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
   },
   video: {
     intro:
-      'Đây là video chữ động: mỗi cảnh = chữ trên màn hình + lời đọc. Không quay camera, không tạo hình AI. Viết từng cảnh hoặc để AI viết lời.',
+      'Đây là video chữ động: mỗi cảnh = chữ tiếng Việt ngắn trên màn hình, chuyển động theo mẫu, nhạc nền, màu thương hiệu. Không quay camera, không tạo hình AI. Viết từng cảnh hoặc để AI viết lời.',
     placeholder:
       'VD:\nCảnh 1 (0–5s): Chữ «Chọn trường cho con không chỉ là chọn điểm.» Lời đọc cùng câu đó.\nCảnh 2: Ba lợi ích — ngắn, một ý một dòng.\nCảnh cuối: «Đăng ký ngày hội mở cửa.»',
   },
@@ -1049,7 +1068,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
 /** Giải thích format thật — tránh hiểu nhầm video = phim quay / clip AI */
 export const TEMPLATE_FORMAT_NOTE: Partial<Record<TemplateType, string>> = {
   video:
-    'Sản phẩm: chuỗi cảnh chữ động (như phim thuyết minh). AI chỉ viết lời và chia cảnh. File tải về là HTML xem được; MP4 chỉ khi máy có bộ mã hóa video.',
+    'Sản phẩm: MP4 chữ động — AI/form viết lời tiếng Việt ngắn, hệ thống áp màu thương hiệu, chuyển động chữ, nhạc nền. Không phải clip quay hay video AI tạo hình.',
   social:
     'Sản phẩm: khung chữ / bài đăng. Có thể dựng thành video chữ ngắn — không phải clip quay sẵn.',
 }
@@ -1059,7 +1078,7 @@ export const TEMPLATE_AI_GUIDANCE: Record<TemplateType, string> = {
   deck: 'Viết đúng số slide + tỷ lệ + mật độ đã chọn. Mỗi cảnh = 1 slide (tiêu đề + gạch đầu dòng ngắn). Chỉ tiếng Việt.',
   poster: 'Chữ poster đúng khổ/hướng: tiêu đề mạnh, nút kêu gọi rõ, ít chữ. Chỉ tiếng Việt.',
   video:
-    'Chỉ viết kịch bản chữ động tiếng Việt: mỗi cảnh có visualText (chữ hiện) + voiceoverText (lời đọc) + số giây. Không mô tả cảnh quay, không sinh hình. Video dài chia chương.',
+    'Chỉ viết kịch bản chữ động tiếng Việt: visualText tối đa một câu ngắn (lên hình), voiceoverText là lời đọc, kèm số giây và kiểu chuyển động. Không mô tả cảnh quay, không sinh hình.',
   social: 'Chú thích + thẻ chủ đề + nút kêu gọi đúng nền tảng và kích thước. Chỉ tiếng Việt.',
   document: 'Cấu trúc tài liệu đúng loại + khổ + độ dài: tóm tắt rồi các mục. Chỉ tiếng Việt.',
   landing: 'Nội dung trang đích đúng số phần + kiểu mở đầu; có giá trị cốt lõi và nút kêu gọi. Chỉ tiếng Việt.',

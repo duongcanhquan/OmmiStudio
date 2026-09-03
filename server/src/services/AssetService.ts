@@ -681,12 +681,70 @@ export async function getAvailableBrands(): Promise<BrandMeta[]> {
   return brands.length > 0 ? brands : FALLBACK_BRANDS;
 }
 
-function inferMotionCategory(id: string, name: string): MotionCategory {
-  const hay = `${id} ${name}`.toLowerCase();
-  if (/type|glitch|kinetic|text|writer/.test(hay)) return 'kinetic-text';
-  if (/fade|slide|zoom|enter|rise|pop/.test(hay)) return 'entrances';
-  if (/ken|burn|parallax|bg|background|drift/.test(hay)) return 'backgrounds';
+function yamlCategoryToMotion(raw: string): MotionCategory {
+  const hay = raw.toLowerCase();
+  if (/text|type|kinetic|glitch|emphasis/.test(hay)) return 'kinetic-text';
+  if (/enter|entrance|fade|slide|zoom|rise/.test(hay)) return 'entrances';
+  if (/bg|background|parallax|ken/.test(hay)) return 'backgrounds';
   return 'transitions';
+}
+
+async function collectMotionRecipes(root: string): Promise<MotionRecipe[]> {
+  const found: MotionRecipe[] = [];
+
+  async function walk(dir: string, depth: number): Promise<void> {
+    if (depth > 5) return;
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    const isRecipe = entries.some(
+      (entry) =>
+        entry.isFile() &&
+        /^(recipe\.motion\.ya?ml|SKILL\.md)$/i.test(entry.name)
+    );
+    const base = path.basename(dir);
+    if (isRecipe && !base.startsWith('_') && !base.startsWith('.')) {
+      const yamlText =
+        (await readOptionalText(path.join(dir, 'recipe.motion.yaml'))) ||
+        (await readOptionalText(path.join(dir, 'recipe.motion.yml'))) ||
+        '';
+      const id = yamlText.match(/^id:\s*(.+)$/m)?.[1]?.trim() || base;
+      const name = (
+        yamlText.match(/^name:\s*(.+)$/m)?.[1] || humanizeId(id)
+      ).trim();
+      const description = (
+        yamlText.match(/^description:\s*(.+)$/m)?.[1] || ''
+      ).trim();
+      const category = yamlCategoryToMotion(
+        `${yamlText.match(/^category:\s*(.+)$/m)?.[1] || ''} ${id} ${name}`
+      );
+      found.push({
+        id,
+        name: localizeScannedCopy(name, humanizeId(id)),
+        category,
+        categoryLabel: CATEGORY_LABELS[category],
+        description: localizeScannedCopy(
+          description,
+          `Hiệu ứng motion-anything · ${base}`
+        ),
+        motionType: id,
+      });
+      return;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith('.') || entry.name.startsWith('_')) continue;
+      await walk(path.join(dir, entry.name), depth + 1);
+    }
+  }
+
+  await walk(root, 0);
+  return found;
 }
 
 /**
@@ -702,21 +760,9 @@ export async function getAvailableMotions(): Promise<MotionRecipe[]> {
   const root = await resolveFirstExisting(MOTION_CANDIDATE_DIRS);
   if (root) {
     try {
-      const entries = await fs.readdir(root, { withFileTypes: true });
-      for (const entry of entries) {
-        const id = entry.name.replace(/\.(json|md|ts|js)$/i, '');
-        if (!id || id.startsWith('.')) continue;
-        if (byId.has(id)) continue;
-
-        const category = inferMotionCategory(id, id);
-        byId.set(id, {
-          id,
-          name: localizeScannedCopy(humanizeId(id), CATEGORY_LABELS[category]),
-          category,
-          categoryLabel: CATEGORY_LABELS[category],
-          description: `Tìm thấy trong bộ hiệu ứng chuyển động (${path.basename(root)})`,
-          motionType: id,
-        });
+      const scanned = await collectMotionRecipes(root);
+      for (const recipe of scanned) {
+        if (!byId.has(recipe.id)) byId.set(recipe.id, recipe);
       }
     } catch {
       // soft-fail to builtins

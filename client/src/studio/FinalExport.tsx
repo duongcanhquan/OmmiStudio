@@ -21,22 +21,19 @@ const PHASE_STEPS: {
   id: Exclude<RenderPhase, 'idle' | 'done' | 'error'>
   label: string
 }[] = [
-  { id: 'script', label: 'Đang dựng bảng cảnh từ kịch bản…' },
-  { id: 'html', label: 'Đang dựng HTML theo mẫu…' },
-  { id: 'motion', label: 'Đang gắn hiệu ứng chuyển động…' },
-  { id: 'media', label: 'Đang render media / TTS…' },
-  { id: 'publish', label: 'Đang đóng gói & xuất bản…' },
+  { id: 'script', label: 'Đang chia cảnh chữ tiếng Việt…' },
+  { id: 'html', label: 'Đang áp màu thương hiệu…' },
+  { id: 'motion', label: 'Đang gắn chuyển động chữ…' },
+  { id: 'media', label: 'Đang mix nhạc nền và render MP4…' },
+  { id: 'publish', label: 'Đang đóng gói file hoàn chỉnh…' },
 ]
 
-function detectKind(url: string): 'video' | 'html' | 'drive' | 'unknown' {
+function detectKind(url: string): 'video' | 'html' | 'pdf' | 'drive' | 'unknown' {
   if (isDriveUrl(url) && /drive\.google\.com/i.test(url)) return 'drive'
   const lower = url.toLowerCase().split('?')[0] ?? url
   if (lower.endsWith('.mp4') || lower.endsWith('.webm')) return 'video'
-  if (
-    lower.endsWith('.html') ||
-    lower.endsWith('.htm') ||
-    lower.endsWith('.pdf')
-  )
+  if (lower.endsWith('.pdf')) return 'pdf'
+  if (lower.endsWith('.html') || lower.endsWith('.htm'))
     return 'html'
   if (/^https?:\/\//i.test(url)) return 'drive'
   return 'unknown'
@@ -106,27 +103,8 @@ export function FinalExport() {
   ])
 
   useEffect(() => {
-    if (renderLoading) {
-      autoDownloaded.current = false
-      return
-    }
-    if (
-      !localUrl ||
-      result.uploadedToDrive ||
-      autoDownloaded.current ||
-      renderPhase !== 'done'
-    ) {
-      return
-    }
-    autoDownloaded.current = true
-    const link = document.createElement('a')
-    link.href = localUrl
-    link.download = fileName
-    link.rel = 'noreferrer'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  }, [renderLoading, localUrl, result.uploadedToDrive, renderPhase, fileName])
+    if (renderLoading) autoDownloaded.current = false
+  }, [renderLoading])
 
   return (
     <div className="space-y-6">
@@ -137,19 +115,21 @@ export function FinalExport() {
             : primary
               ? 'File hoàn chỉnh đã sẵn sàng'
               : canRender
-                ? 'Hệ thống bắt đầu dựng file'
+                ? 'Sẵn sàng dựng file từ form'
                 : 'Chưa đủ kịch bản để xuất'}
         </h2>
         <p className="text-sm text-slate-400">
           {renderLoading
-            ? 'Giữ tab này mở. Khi xong, file sẽ tự tải về máy.'
+            ? 'Giữ tab này mở. Khi xong, bấm Tải về — hệ thống không tự tải.'
             : primary
-              ? selection.contentType === 'video'
-                ? 'Đây là video chữ động (trang HTML hoặc MP4). Tải lại nếu trình duyệt chặn tải tự động.'
-                : 'Tải lại nếu trình duyệt chặn tải tự động. Có thể xem trước bên dưới.'
+              ? kind === 'video'
+                ? 'MP4 chữ động (màu thương hiệu, chuyển động, nhạc). Bấm Tải về khi sẵn sàng.'
+                : kind === 'pdf'
+                  ? 'PDF in được từ form. Bấm Tải về khi sẵn sàng.'
+                  : 'HTML theo thương hiệu. Bấm Tải về khi sẵn sàng.'
               : canRender
-                ? 'Kịch bản đã đủ — không cần cài thêm hay điền gì nữa.'
-                : 'Quay lại bước 3, chỉnh kịch bản cho chuẩn rồi bấm Xuất file.'}
+                ? 'Form đã đủ. Hệ thống bắt đầu dựng file.'
+                : 'Quay lại bước 3, điền từng phần rồi bấm Xuất file.'}
         </p>
       </header>
 
@@ -181,6 +161,14 @@ export function FinalExport() {
               controls
               src={localUrl}
               className="w-full rounded-xl border border-slate-800 bg-black"
+            />
+          )}
+
+          {kind === 'pdf' && localUrl && !result.uploadedToDrive && (
+            <iframe
+              title="Kết quả PDF"
+              src={localUrl}
+              className="h-80 w-full rounded-xl border border-slate-800 bg-white"
             />
           )}
 

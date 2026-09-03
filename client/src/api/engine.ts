@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { ScriptPart } from '../lib/scriptForm'
 import {
   inferTypeFromMeta,
   templateTypeToContentType,
@@ -62,9 +63,12 @@ export interface GeneratePayload {
   type: ContentType
   voiceRegion?: VoiceRegion
   templateId?: string
+  templateType?: TemplateType
   brandId?: string
   motionId?: string
   publishTarget?: PublishTarget
+  fieldValues?: Record<string, string>
+  parts?: ScriptPart[]
 }
 
 export interface GenerateResponse {
@@ -114,9 +118,12 @@ export async function generateContent(
     type: payload.type,
     voiceRegion: payload.voiceRegion ?? 'south',
     templateId: payload.templateId,
+    templateType: payload.templateType,
     brandId: payload.brandId,
     motionId: payload.motionId,
     publishTarget: payload.publishTarget ?? 'local',
+    fieldValues: payload.fieldValues,
+    parts: payload.parts,
   })
   return data
 }
@@ -128,9 +135,30 @@ export async function generatePreview(
     prompt: payload.prompt,
     type: payload.type,
     templateId: payload.templateId,
+    templateType: payload.templateType,
     brandId: payload.brandId,
     motionId: payload.motionId,
+    fieldValues: payload.fieldValues,
+    parts: payload.parts,
   })
+  return data
+}
+
+export async function normalizeScriptForm(payload: {
+  templateType: TemplateType
+  brief: string
+  fieldValues?: Record<string, string>
+  parts?: ScriptPart[]
+  brandName?: string
+}): Promise<{
+  success: boolean
+  title?: string
+  fieldValues?: Record<string, string>
+  parts?: ScriptPart[]
+  message?: string
+  error?: string
+}> {
+  const { data } = await engineApi.post('/script/normalize', payload)
   return data
 }
 

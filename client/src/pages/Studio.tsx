@@ -7,11 +7,17 @@ import {
   fetchTemplates,
   generateContent,
   generatePreview as apiGeneratePreview,
+  normalizeScriptForm,
   templateTypeToContentType,
   type MotionRecipe,
   type PublishTarget,
   type TemplateMeta,
 } from '../api/engine'
+import {
+  defaultMetaValues,
+  defaultParts,
+  partsToPrompt,
+} from '../lib/scriptForm'
 import {
   BRAND_INDUSTRY_LABELS,
   mergeBrandSources,
@@ -54,6 +60,7 @@ const INITIAL_SELECTION: StudioSelection = {
   scriptNotes: '',
   richHtml: '',
   fieldValues: {},
+  parts: [],
   voiceRegion: 'south',
   contentType: 'slide',
 }
@@ -106,9 +113,11 @@ function resolvePrompt(selection: StudioSelection): string {
           dontSay: brand.voice.dontSay,
           fonts: `${brand.typography.heading} / ${brand.typography.body}`,
           colors: [
-            brand.palette.primary,
-            brand.palette.secondary,
-            brand.palette.accent,
+            `nền ${brand.palette.background}`,
+            `chữ ${brand.palette.text}`,
+            `chính ${brand.palette.primary}`,
+            `phụ ${brand.palette.secondary}`,
+            `nhấn ${brand.palette.accent}`,
           ]
             .filter(Boolean)
             .join(', '),
@@ -117,32 +126,22 @@ function resolvePrompt(selection: StudioSelection): string {
     aiBrief: selection.aiBrief,
     scriptNotes: selection.scriptNotes,
     fields: selection.fieldValues,
-    richHtml: selection.richHtml,
+    richHtml:
+      selection.parts.length > 0
+        ? partsToPrompt(type, selection.fieldValues, selection.parts).replace(
+            /\n/g,
+            '<br/>'
+          )
+        : selection.richHtml,
   })
 }
 
 function fieldsComplete(selection: StudioSelection): boolean {
   return (
     getMissingRequiredFields(selection.selectedTemplate?.type, selection.fieldValues, {
-      aiBrief: selection.aiBrief,
-      richHtml: selection.richHtml,
-      scriptNotes: selection.scriptNotes,
+      parts: selection.parts,
     }).length === 0
   )
-}
-
-function missingFieldLabel(selection: StudioSelection): string {
-  const missing = getMissingRequiredFields(
-    selection.selectedTemplate?.type,
-    selection.fieldValues,
-    {
-      aiBrief: selection.aiBrief,
-      richHtml: selection.richHtml,
-      scriptNotes: selection.scriptNotes,
-    }
-  )
-  if (!missing.length) return ''
-  return missing.map((field) => field.label).join(', ')
 }
 
 export function StudioPage({
@@ -253,8 +252,20 @@ export function StudioPage({
                 ? templateTypeToContentType(tpl[0].type)
                 : 'slide',
             fieldValues: nextType
-              ? mergeFieldDefaults(nextType, prev.fieldValues)
+              ? {
+                  ...mergeFieldDefaults(nextType, prev.fieldValues),
+                  ...defaultMetaValues(nextType),
+                  ...(prev.fieldValues.title
+                    ? { title: prev.fieldValues.title }
+                    : {}),
+                }
               : prev.fieldValues,
+            parts:
+              prev.parts.length > 0
+                ? prev.parts
+                : nextType
+                  ? defaultParts(nextType)
+                  : prev.parts,
           }
         })
       } catch (err) {
@@ -326,69 +337,42 @@ export function StudioPage({
   }, [])
 
   const runAiAssist = useCallback(async () => {
-    if (!fieldsComplete(selection)) {
-      const labels = missingFieldLabel(selection)
-      onNotify?.(
-        labels
-          ? `Còn thiếu: ${labels}. Điền các ô này, hoặc viết brief / kịch bản.`
-          : 'Vui lòng điền nội dung trước.',
-        true
-      )
+    if (!selection.aiBrief.trim() && !selection.scriptNotes.trim()) {
+      onNotify?.('Viết brief ngắn (bạn muốn làm gì) rồi bấm AI điền form.', true)
+      return
+    }
+    if (!selection.selectedTemplate) {
+      onNotify?.('Chọn mẫu trước.', true)
       return
     }
     setAiAssistLoading(true)
     setError(null)
     try {
-      const prompt = resolvePrompt(selection)
-      const response = await apiGeneratePreview({
-        prompt,
-        type: selection.contentType,
-        templateId: selection.selectedTemplate?.id,
-        brandId: selection.selectedBrand?.id,
-        motionId:
-          selection.selectedMotion?.motionType ||
-          selection.selectedMotion?.id,
+      const response = await normalizeScriptForm({
+        templateType: selection.selectedTemplate.type,
+        brief: [selection.aiBrief, selection.scriptNotes]
+          .filter(Boolean)
+          .join('\n'),
+        fieldValues: selection.fieldValues,
+        parts: selection.parts,
+        brandName: selection.selectedBrand?.name,
       })
-      if (!response.success) {
-        throw new Error(response.error || 'AI không trả về kết quả.')
+      if (!response.success || !response.parts) {
+        throw new Error(response.error || 'AI không điền được form.')
       }
-
-      const script = response.script as
-        | {
-            title?: string
-            scenes?: Array<{
-              sceneId?: number
-              visualText?: string
-              voiceoverText?: string
-            }>
-          }
-        | undefined
-
-      let rich = ''
-      if (script?.title) {
-        rich += `<p><strong>${script.title}</strong></p>`
-      }
-      if (script?.scenes?.length) {
-        rich += '<ol>'
-        for (const scene of script.scenes) {
-          const visual = scene.visualText || ''
-          const vo = scene.voiceoverText || ''
-          rich += `<li><p>${visual}</p>${vo ? `<p><em>Voice: ${vo}</em></p>` : ''}</li>`
-        }
-        rich += '</ol>'
-      } else {
-        rich = `<p>${prompt.replace(/\n/g, '<br/>')}</p>`
-      }
-
       setSelection((prev) => ({
         ...prev,
-        prompt,
-        richHtml: rich,
+        fieldValues: {
+          ...prev.fieldValues,
+          ...(response.fieldValues ?? {}),
+          title:
+            response.fieldValues?.title ||
+            response.title ||
+            prev.fieldValues.title,
+        },
+        parts: response.parts ?? prev.parts,
       }))
-      if (response.previewUrl) {
-        setResult((prev) => ({ ...prev, previewUrl: response.previewUrl! }))
-      }
-      onNotify?.('AI đã viết kịch bản — kiểm tra editor và xem trước.')
+      onNotify?.('AI đã điền từng ô form. Kiểm tra rồi xuất file.')
     } catch (err) {
       const message = extractErrorMessage(err)
       setError(message)
@@ -409,10 +393,13 @@ export function StudioPage({
         prompt,
         type: selection.contentType,
         templateId: selection.selectedTemplate?.id,
+        templateType: selection.selectedTemplate?.type,
         brandId: selection.selectedBrand?.id,
         motionId:
           selection.selectedMotion?.motionType ||
           selection.selectedMotion?.id,
+        fieldValues: selection.fieldValues,
+        parts: selection.parts,
       })
       if (!response.success || !response.previewUrl) {
         throw new Error(response.error || 'Xem trước không trả về URL.')
@@ -471,11 +458,14 @@ export function StudioPage({
               ? selection.voiceRegion
               : undefined,
           templateId: selection.selectedTemplate?.id,
+          templateType: selection.selectedTemplate?.type,
           brandId: selection.selectedBrand?.id,
           motionId:
             selection.selectedMotion?.motionType ||
             selection.selectedMotion?.id,
           publishTarget: target,
+          fieldValues: selection.fieldValues,
+          parts: selection.parts,
         })
 
         if (!response.success || !response.finalOutputPath) {
@@ -494,7 +484,7 @@ export function StudioPage({
           response.message ||
             (response.uploadedToDrive
               ? 'File hoàn chỉnh đã lên Google Drive.'
-              : 'File hoàn chỉnh đã sẵn sàng — đang tải về máy.')
+              : 'File hoàn chỉnh đã sẵn sàng — bấm Tải về.')
         )
       } catch (err) {
         const message = extractErrorMessage(err)

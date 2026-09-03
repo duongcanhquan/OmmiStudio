@@ -1,20 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowRight,
-  Bold,
   Eye,
   FileText,
-  Italic,
-  Link2,
-  List,
-  ListOrdered,
   Loader2,
   Palette,
   Sparkles,
-  Underline,
   Wand2,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { resolveAssetUrl } from '../api/engine'
 import {
   REQUIRED_FIELDS_BY_TYPE,
@@ -29,7 +23,9 @@ import {
   type RequiredContentField,
   type TemplateType,
 } from '../lib/templateTypes'
+import { formIsReady } from '../lib/scriptForm'
 import { cn } from '../lib/utils'
+import { ScriptPartsEditor } from './ScriptPartsEditor'
 import { selectionHasContent, useStudio } from './StudioContext'
 
 type ContentTab = 'manual' | 'ai'
@@ -56,14 +52,10 @@ export function ContentMotionPane() {
         : 'manual'
   )
 
-  const editorRef = useRef<HTMLDivElement>(null)
   const templateType: TemplateType =
     selection.selectedTemplate?.type ?? 'deck'
   const allFields = REQUIRED_FIELDS_BY_TYPE[templateType] ?? []
-  const contentFields = allFields.filter((f) => !isSettingsField(f))
   const settingFields = allFields.filter((f) => isSettingsField(f))
-  const coreFields = contentFields.filter((f) => isFieldRequired(f))
-  const extraFields = contentFields.filter((f) => !isFieldRequired(f))
   const help = TEMPLATE_SCRIPT_HELP[templateType]
   const brand = selection.selectedBrand
 
@@ -86,40 +78,18 @@ export function ContentMotionPane() {
   const missingRequired = getMissingRequiredFields(
     templateType,
     selection.fieldValues,
-    {
-      aiBrief: selection.aiBrief,
-      richHtml: selection.richHtml,
-      scriptNotes: selection.scriptNotes,
-    }
+    { parts: selection.parts }
   )
   const missingLabels = missingRequired.map((f) => f.label).join(', ')
   const missingKeys = new Set(missingRequired.map((f) => f.key))
 
   const briefMissing = !selection.aiBrief.trim()
-  const hasScriptBody = Boolean(
-    selection.richHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
+  const formReady = formIsReady(
+    templateType,
+    selection.fieldValues,
+    selection.parts
   )
-  const readyForPublish =
-    missingRequired.length === 0 && selectionHasContent(selection)
-
-  useEffect(() => {
-    const el = editorRef.current
-    if (!el) return
-    if (el.innerHTML !== selection.richHtml) {
-      el.innerHTML = selection.richHtml || ''
-    }
-  }, [selection.selectedTemplate?.id, tab])
-
-  useEffect(() => {
-    if (!editorRef.current) return
-    if (
-      selection.richHtml &&
-      editorRef.current.innerHTML !== selection.richHtml &&
-      document.activeElement !== editorRef.current
-    ) {
-      editorRef.current.innerHTML = selection.richHtml
-    }
-  }, [selection.richHtml])
+  const readyForPublish = formReady.ok && selectionHasContent(selection)
 
   useEffect(() => {
     const merged = mergeFieldDefaults(templateType, selection.fieldValues)
@@ -131,16 +101,6 @@ export function ContentMotionPane() {
       patchSelection({ fieldValues: merged })
     }
   }, [templateType])
-
-  function exec(cmd: string, value?: string) {
-    editorRef.current?.focus()
-    document.execCommand(cmd, false, value)
-    syncRich()
-  }
-
-  function syncRich() {
-    patchSelection({ richHtml: editorRef.current?.innerHTML ?? '' })
-  }
 
   function setField(key: string, value: string) {
     patchSelection({
@@ -160,8 +120,8 @@ export function ContentMotionPane() {
           Soạn thảo kịch bản
         </h2>
         <p className="text-sm text-slate-400">
-          {help.intro} Hoặc chuyển tab AI và chỉ viết brief — hệ thống tự điền
-          thông số mẫu.
+          Điền từng phần đúng mẫu. Hoặc tab AI: viết brief, AI điền các ô, bạn
+          sửa rồi xuất.
         </p>
         {TEMPLATE_FORMAT_NOTE[templateType] && (
           <p className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs leading-relaxed text-cyan-100/90">
@@ -231,60 +191,18 @@ export function ContentMotionPane() {
               <>
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-xs leading-relaxed text-slate-300">
                   <p className="font-medium text-cyan-100">
-                    Cần điền: {coreFields.map((f) => f.label).join(', ') || 'nội dung kịch bản'}
-                    .
+                    Form chuẩn: tiêu đề + từng phần. Thêm/bớt phần nếu cần.
                   </p>
                   <p className="mt-1 text-slate-400">{help.intro}</p>
                 </div>
 
-                <RequiredFieldsBlock
-                  fields={coreFields}
-                  values={selection.fieldValues}
-                  missingKeys={missingKeys}
-                  onChange={setField}
-                  title="Thông tin cần có"
+                <ScriptPartsEditor
+                  type={templateType}
+                  fieldValues={selection.fieldValues}
+                  parts={selection.parts}
+                  onField={setField}
+                  onParts={(parts) => patchSelection({ parts })}
                 />
-
-                <ScriptEditor
-                  editorRef={editorRef}
-                  onExec={exec}
-                  onSync={syncRich}
-                  placeholder={help.placeholder}
-                />
-
-                {extraFields.length > 0 && (
-                  <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Chi tiết thêm — không bắt buộc
-                    </summary>
-                    <div className="mt-3">
-                      <RequiredFieldsBlock
-                        fields={extraFields}
-                        values={selection.fieldValues}
-                        missingKeys={missingKeys}
-                        onChange={setField}
-                        title=""
-                      />
-                    </div>
-                  </details>
-                )}
-
-                {settingFields.length > 0 && (
-                  <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
-                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Cài đặt mẫu — đã chọn sẵn, sửa nếu cần
-                    </summary>
-                    <div className="mt-3">
-                      <RequiredFieldsBlock
-                        fields={settingFields}
-                        values={selection.fieldValues}
-                        missingKeys={missingKeys}
-                        onChange={setField}
-                        title=""
-                      />
-                    </div>
-                  </details>
-                )}
 
                 <MotionVoiceRow
                   isVideo={isVideo}
@@ -324,10 +242,8 @@ export function ContentMotionPane() {
                 {!readyForPublish && (
                   <p role="alert" className="text-xs text-amber-300/90">
                     {missingRequired.length > 0
-                      ? `Còn thiếu: ${missingLabels}. Điền các ô có dấu * hoặc viết kịch bản bên trên.`
-                      : !hasScriptBody
-                        ? 'Viết tiêu đề / kịch bản, hoặc chuyển tab AI để chỉ cần một brief.'
-                        : ''}
+                      ? `Còn thiếu: ${missingLabels}.`
+                      : 'Điền tiêu đề và ít nhất một phần, hoặc dùng tab AI.'}
                   </p>
                 )}
               </>
@@ -335,7 +251,7 @@ export function ContentMotionPane() {
               <>
                 <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-3 text-xs leading-relaxed text-slate-300">
                   <p className="font-medium text-violet-100">
-                    Chỉ cần 1 ô: mô tả bạn muốn gì.
+                    Viết brief — AI điền từng ô form, không xuất file.
                   </p>
                   <p className="mt-1 text-slate-400">
                     AI viết theo mẫu «{TEMPLATE_TYPE_LABELS[templateType]}»
@@ -411,11 +327,7 @@ export function ContentMotionPane() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={
-                      aiAssistLoading ||
-                      briefMissing ||
-                      missingRequired.length > 0
-                    }
+                    disabled={aiAssistLoading || briefMissing}
                     onClick={() => void handleAi()}
                     className={cn(
                       'inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 text-sm font-semibold text-violet-100',
@@ -427,9 +339,9 @@ export function ContentMotionPane() {
                     ) : (
                       <Sparkles className="size-4" aria-hidden />
                     )}
-                    AI viết kịch bản
+                    AI điền form
                   </button>
-                  {hasScriptBody && (
+                  {formReady.ok && (
                     <button
                       type="button"
                       onClick={() => setTab('manual')}
@@ -482,8 +394,8 @@ export function ContentMotionPane() {
                 <Eye className="size-7 text-slate-600" aria-hidden />
                 <p className="max-w-xs text-sm text-slate-400">
                   {tab === 'ai'
-                    ? 'Viết brief → AI viết kịch bản → chỉnh nếu cần → xem trước.'
-                    : 'Điền tiêu đề + kịch bản → Xuất file hoàn chỉnh.'}
+                    ? 'Viết brief → AI điền ô → kiểm tra form → xuất file.'
+                    : 'Điền từng phần → Xuất file hoàn chỉnh.'}
                 </p>
               </div>
             )}
@@ -638,73 +550,6 @@ function RequiredFieldsBlock({
   )
 }
 
-function ScriptEditor({
-  editorRef,
-  onExec,
-  onSync,
-  placeholder,
-}: {
-  editorRef: RefObject<HTMLDivElement | null>
-  onExec: (cmd: string, value?: string) => void
-  onSync: () => void
-  placeholder: string
-}) {
-  return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-        Kịch bản / nội dung
-      </h3>
-      <p className="text-[11px] text-slate-500">
-        Viết tự do. Một đoạn ý chính cũng được — không cần tách outline riêng.
-      </p>
-      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-800 bg-slate-900/80 p-1">
-        <ToolBtn label="In đậm" onClick={() => onExec('bold')} icon={Bold} />
-        <ToolBtn label="Nghiêng" onClick={() => onExec('italic')} icon={Italic} />
-        <ToolBtn
-          label="Gạch chân"
-          onClick={() => onExec('underline')}
-          icon={Underline}
-        />
-        <span className="mx-1 h-5 w-px bg-slate-700" aria-hidden />
-        <ToolBtn
-          label="Đầu dòng"
-          onClick={() => onExec('insertUnorderedList')}
-          icon={List}
-        />
-        <ToolBtn
-          label="Đánh số"
-          onClick={() => onExec('insertOrderedList')}
-          icon={ListOrdered}
-        />
-        <ToolBtn
-          label="Chèn link"
-          onClick={() => {
-            const url = window.prompt('Nhập URL liên kết:')
-            if (url) onExec('createLink', url)
-          }}
-          icon={Link2}
-        />
-      </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        role="textbox"
-        aria-multiline
-        aria-label="Soạn thảo kịch bản"
-        data-placeholder={placeholder}
-        onInput={onSync}
-        onBlur={onSync}
-        className={cn(
-          'min-h-[200px] rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm leading-relaxed text-slate-100 outline-none',
-          'focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20',
-          'empty:before:pointer-events-none empty:before:text-slate-500 empty:before:content-[attr(data-placeholder)]'
-        )}
-        style={{ whiteSpace: 'pre-wrap' }}
-      />
-    </section>
-  )
-}
-
 function MotionVoiceRow({
   isVideo,
   selection,
@@ -762,29 +607,6 @@ function MotionVoiceRow({
         </select>
       </label>
     </div>
-  )
-}
-
-function ToolBtn({
-  label,
-  onClick,
-  icon: Icon,
-}: {
-  label: string
-  onClick: () => void
-  icon: typeof Bold
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
-    >
-      <Icon className="size-4" aria-hidden />
-    </button>
   )
 }
 

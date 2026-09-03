@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import type { ContentType } from '../services/LLMService';
+import { normalizeStudioForm, type ContentType } from '../services/LLMService';
 import {
   runGeneratePipeline,
   runPreviewPipeline,
@@ -7,6 +7,7 @@ import {
 import { executeNexuPipeline } from '../services/NexuPipelineService';
 import { workspaceService } from '../services/WorkspaceService';
 import type { VietnameseVoiceRegion } from '../services/VoiceService';
+import { parseParts, type StudioTemplateType } from '../services/scriptForm';
 
 export interface RenderHtmlBody {
   content: string;
@@ -14,15 +15,18 @@ export interface RenderHtmlBody {
 }
 
 export interface GenerateBody {
-  prompt: string;
+  prompt?: string;
   type: ContentType;
   voiceRegion?: VietnameseVoiceRegion;
   templateId?: string;
+  templateType?: StudioTemplateType;
   brandId?: string;
   /** Preferred motion-anything recipe / motionType */
   motionId?: string;
   /** local = tải về máy · drive = Google Drive */
   publishTarget?: 'local' | 'drive';
+  fieldValues?: Record<string, string>;
+  parts?: unknown;
 }
 
 const CONTENT_TYPES: ContentType[] = ['poster', 'video', 'slide'];
@@ -38,15 +42,20 @@ export async function generate(req: Request, res: Response): Promise<void> {
     type,
     voiceRegion = 'south',
     templateId,
+    templateType,
     brandId,
     motionId,
     publishTarget = 'local',
+    fieldValues,
+    parts,
   } = req.body as Partial<GenerateBody>;
 
-  if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+  const parsedParts = parseParts(parts);
+  const hasPrompt = Boolean(prompt && typeof prompt === 'string' && prompt.trim());
+  if (!hasPrompt && parsedParts.length === 0) {
     res.status(400).json({
       success: false,
-      error: 'Thiếu nội dung kịch bản (prompt không được trống).',
+      error: 'Thiếu form kịch bản (cần các phần đã điền hoặc prompt).',
     });
     return;
   }
@@ -72,16 +81,20 @@ export async function generate(req: Request, res: Response): Promise<void> {
 
   try {
     const result = await runGeneratePipeline({
-      prompt: prompt.trim(),
+      prompt: hasPrompt ? prompt!.trim() : '',
       type,
       voiceRegion: voiceRegion as VietnameseVoiceRegion,
       templateId: typeof templateId === 'string' ? templateId : undefined,
+      templateType: typeof templateType === 'string' ? templateType : undefined,
       brandId: typeof brandId === 'string' ? brandId : undefined,
       preferredMotion:
         typeof motionId === 'string' && motionId.trim()
           ? motionId.trim()
           : undefined,
       publishTarget: target,
+      fieldValues:
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : undefined,
+      parts: parsedParts,
     });
 
     res.status(200).json({
@@ -103,7 +116,7 @@ export async function generate(req: Request, res: Response): Promise<void> {
       degraded: result.degraded,
       message: result.uploadedToDrive
         ? 'File hoàn chỉnh đã lên Google Drive.'
-        : 'File hoàn chỉnh đã sẵn sàng — tải về máy.'
+        : 'File hoàn chỉnh đã sẵn sàng. Bấm Tải về khi bạn muốn.'
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Lỗi không xác định';
@@ -170,6 +183,61 @@ export async function generatePreview(
     const message = error instanceof Error ? error.message : 'Lỗi không xác định';
     console.error('[generate/preview]', message);
     res.status(500).json({
+      success: false,
+      error: message,
+    });
+  }
+}
+
+/**
+ * POST /api/v1/script/normalize — AI điền form từng phần, không render file.
+ */
+export async function normalizeScript(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const {
+    templateType,
+    brief,
+    fieldValues,
+    parts,
+    brandName,
+  } = req.body as {
+    templateType?: StudioTemplateType;
+    brief?: string;
+    fieldValues?: Record<string, string>;
+    parts?: unknown;
+    brandName?: string;
+  };
+
+  if (!templateType) {
+    res.status(400).json({
+      success: false,
+      error: 'Thiếu loại mẫu để điền form.',
+    });
+    return;
+  }
+
+  try {
+    const form = await normalizeStudioForm({
+      templateType,
+      brief: typeof brief === 'string' ? brief : '',
+      fieldValues:
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : {},
+      parts: parseParts(parts),
+      brandName: typeof brandName === 'string' ? brandName : undefined,
+    });
+    res.status(200).json({
+      success: true,
+      title: form.title,
+      fieldValues: form.fieldValues,
+      parts: form.parts,
+      message: 'AI đã điền form. Kiểm tra từng ô rồi xuất file.',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
+    console.error('[script/normalize]', message);
+    res.status(400).json({
       success: false,
       error: message,
     });
