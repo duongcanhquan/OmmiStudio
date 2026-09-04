@@ -5,6 +5,7 @@ import {
   FileText,
   Loader2,
   Palette,
+  Search,
   Sparkles,
   Wand2,
 } from 'lucide-react'
@@ -44,12 +45,15 @@ export function ContentMotionPane() {
     generatePreview,
     result,
     runAiAssist,
+    runDeepResearch,
     upsertBrand,
     aiAssistLoading,
+    deepResearchLoading,
     goNext,
     canGoNext,
   } = useStudio()
 
+  const [researchDepth, setResearchDepth] = useState<'fast' | 'deep'>('fast')
   const [tab, setTab] = useState<ContentTab>(() =>
     selection.richHtml.replace(/<[^>]+>/g, '').trim() && !selection.aiBrief.trim()
       ? 'manual'
@@ -85,6 +89,9 @@ export function ContentMotionPane() {
   const isVideo =
     selection.contentType === 'video' ||
     selection.fieldValues.outputFormat === 'video'
+  const isVox =
+    catalog?.id === 'video-vox-collage' ||
+    Boolean(selection.layoutId?.includes('vox'))
 
   const missingRequired = getMissingRequiredFields(
     templateType,
@@ -141,9 +148,17 @@ export function ContentMotionPane() {
   }
 
   async function handleAi() {
-    await runAiAssist()
-    setTab('manual')
+    if (await runAiAssist()) setTab('manual')
   }
+
+  async function handleDeepResearch() {
+    const ok = await runDeepResearch(
+      researchDepth === 'deep' ? { breadth: 3, depth: 2 } : { breadth: 2, depth: 1 }
+    )
+    if (ok) setTab('manual')
+  }
+
+  const busy = aiAssistLoading || deepResearchLoading
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
@@ -152,8 +167,8 @@ export function ContentMotionPane() {
           Soạn thảo kịch bản
         </h2>
         <p className="text-sm text-slate-400">
-          Điền từng phần đúng mẫu. Hoặc tab AI: viết brief, AI điền các ô, bạn
-          sửa rồi xuất.
+          Điền từng phần đúng mẫu. Tab AI: viết ý tưởng — điền form, hoặc
+          nghiên cứu nguồn rồi mới viết kịch bản.
         </p>
         {(() => {
           const note = catalog
@@ -278,6 +293,20 @@ export function ContentMotionPane() {
                   </details>
                 )}
 
+                {selection.researchReport ? (
+                  <details className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-cyan-200">
+                      Facts từ nghiên cứu
+                      {selection.researchSources?.length
+                        ? ` · ${selection.researchSources.length} nguồn`
+                        : ''}
+                    </summary>
+                    <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-300">
+                      {selection.researchReport}
+                    </pre>
+                  </details>
+                ) : null}
+
                 <ScriptPartsEditor
                   type={templateType}
                   fieldValues={selection.fieldValues}
@@ -340,7 +369,7 @@ export function ContentMotionPane() {
                     {catalog?.purpose ?? TEMPLATE_TYPE_LABELS[templateType]}
                     » và file {catalog?.outputLabel ?? 'xuất'}
                     {brand ? `, giọng «${brand.name}»` : ''}. Không bịa bố cục
-                    khác loại mẫu.
+                    khác loại mẫu. «Nghiên cứu sâu» tìm nguồn rồi mới viết.
                   </p>
                 </div>
 
@@ -365,9 +394,34 @@ export function ContentMotionPane() {
                   />
                   <span id="brief-help" className="block text-[11px] text-slate-500">
                     Viết như nhắn đồng nghiệp: đối tượng, ý chính, độ dài, CTA.
-                    Không cần điền outline / chi tiết riêng.
+                    Muốn có facts / số liệu: bấm Nghiên cứu sâu trước khi viết.
                   </span>
                 </label>
+
+                {selection.researchReport ? (
+                  <details className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-cyan-200">
+                      Kết quả nghiên cứu
+                      {selection.researchSources?.length
+                        ? ` · ${selection.researchSources.length} nguồn`
+                        : ''}
+                    </summary>
+                    <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-300">
+                      {selection.researchReport}
+                    </pre>
+                    {selection.researchSources && selection.researchSources.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-[11px] text-cyan-300/90">
+                        {selection.researchSources.slice(0, 8).map((url) => (
+                          <li key={url} className="truncate">
+                            <a href={url} target="_blank" rel="noreferrer" className="hover:underline">
+                              {url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </details>
+                ) : null}
 
                 <details className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3">
                   <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -408,10 +462,26 @@ export function ContentMotionPane() {
                   grouped={grouped}
                 />
 
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-[11px] text-slate-500">
+                    Độ sâu
+                    <select
+                      className="ml-2 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                      value={researchDepth}
+                      onChange={(e) =>
+                        setResearchDepth(e.target.value === 'deep' ? 'deep' : 'fast')
+                      }
+                    >
+                      <option value="fast">Nhanh — 2 truy vấn × 1 lớp</option>
+                      <option value="deep">Sâu — 3 truy vấn × 2 lớp</option>
+                    </select>
+                  </label>
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={aiAssistLoading || briefMissing}
+                    disabled={busy || briefMissing}
                     onClick={() => void handleAi()}
                     className={cn(
                       'inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/15 px-4 text-sm font-semibold text-violet-100',
@@ -424,6 +494,22 @@ export function ContentMotionPane() {
                       <Sparkles className="size-4" aria-hidden />
                     )}
                     AI điền form
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || briefMissing}
+                    onClick={() => void handleDeepResearch()}
+                    className={cn(
+                      'inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/15 px-4 text-sm font-semibold text-cyan-100',
+                      'hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-45'
+                    )}
+                  >
+                    {deepResearchLoading ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Search className="size-4" aria-hidden />
+                    )}
+                    Nghiên cứu sâu rồi viết
                   </button>
                   {formReady.ok && (
                     <button
@@ -475,7 +561,9 @@ export function ContentMotionPane() {
                   className="absolute inset-0 h-full w-full border-0 bg-white"
                 />
                 <p className="pointer-events-none absolute bottom-2 left-2 right-2 rounded-lg bg-slate-950/75 px-3 py-1.5 text-[10px] leading-snug text-slate-300">
-                  {isVideo
+                  {isVox
+                    ? 'Bản sống cắt giấy Vox: tờ rách, băng keo, chấm halftone. Xuất MP4 quay lại trang này.'
+                    : isVideo
                     ? 'Bản sống: blob / chữ chạy / scramble. Xuất MP4 sẽ quay lại trang này.'
                     : 'Bản sống html-anything (có icon). File PNG là một khung chụp đứng.'}
                 </p>
@@ -484,7 +572,9 @@ export function ContentMotionPane() {
               <div className="flex h-full min-h-[18rem] flex-col items-center justify-center gap-2 p-6 text-center">
                 <Eye className="size-7 text-slate-600" aria-hidden />
                 <p className="max-w-xs text-sm text-slate-400">
-                  {isVideo
+                  {isVox
+                    ? 'Bấm «Tạo xem trước» để thấy poster cắt giấy (giấy rách, băng keo). File MP4 quay lại trang này — không cần Atlas.'
+                    : isVideo
                     ? 'Bấm «Tạo xem trước» để thấy trang video: màu, blob, chữ chạy. File MP4 quay lại trang này — không phải một ảnh đứng.'
                     : tab === 'ai'
                       ? 'Viết brief → AI điền ô → xem trước layout (có icon). PNG xuất là một khung chụp.'
@@ -492,7 +582,7 @@ export function ContentMotionPane() {
                 </p>
               </div>
             )}
-            {(previewLoading || aiAssistLoading) && (
+            {(previewLoading || aiAssistLoading || deepResearchLoading) && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
                 <Loader2
                   className="size-8 animate-spin text-cyan-400"

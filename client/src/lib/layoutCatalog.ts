@@ -14,6 +14,7 @@ export type LayoutStyle =
   | 'cham-soc'
   | 'chuyen-dong'
   | 'giay'
+  | 'cat-giay'
 
 export const LAYOUT_STYLE_LABELS: Record<LayoutStyle, string> = {
   'chu-lon': 'Chữ lớn',
@@ -27,6 +28,7 @@ export const LAYOUT_STYLE_LABELS: Record<LayoutStyle, string> = {
   'cham-soc': 'Giờ / tin cậy',
   'chuyen-dong': 'Chữ chạy',
   giay: 'Trang giấy',
+  'cat-giay': 'Cắt giấy Vox',
 }
 
 /** Cách vẽ khung xem trước — khớp bố cục skill thật, không phải poster màu chung. */
@@ -73,6 +75,20 @@ export type LayoutKind =
   | 'resume-col'
   | 'worksheet'
   | 'quiz'
+  | 'vox-american-retro'
+  | 'vox-swiss-modern'
+  | 'vox-punk-zine'
+  | 'vox-soviet'
+  | 'vox-wpa'
+  | 'vox-70s'
+  | 'vox-ink'
+  | 'vox-atomic'
+  | 'vox-newsprint'
+  | 'vox-deco'
+  | 'vox-listicle'
+  | 'vox-timeline'
+  | 'vox-stat'
+  | 'vox-hook'
 
 export interface StudioLayout {
   id: string
@@ -129,6 +145,20 @@ const STYLE_BY_KIND: Record<LayoutKind, LayoutStyle> = {
   'resume-col': 'giay',
   worksheet: 'danh-so',
   quiz: 'danh-so',
+  'vox-american-retro': 'cat-giay',
+  'vox-swiss-modern': 'giao-dien',
+  'vox-punk-zine': 'tap-chi',
+  'vox-soviet': 'chu-lon',
+  'vox-wpa': 'chu-lon',
+  'vox-70s': 'cat-giay',
+  'vox-ink': 'tap-chi',
+  'vox-atomic': 'chuyen-dong',
+  'vox-newsprint': 'tap-chi',
+  'vox-deco': 'uu-dai',
+  'vox-listicle': 'danh-so',
+  'vox-timeline': 'su-kien',
+  'vox-stat': 'so-lieu',
+  'vox-hook': 'chu-lon',
 }
 
 export function styleOf(layout: StudioLayout): LayoutStyle {
@@ -274,6 +304,33 @@ export const STUDIO_LAYOUTS: StudioLayout[] = [
     industries: ['healthcare', 'education'],
   },
   {
+    id: 'fb-vox-newsprint',
+    loaiId: 'social-vuong',
+    name: 'Cắt giấy bìa báo',
+    blurb: 'Masthead · headline đặc · cột tin — explainer Vox vuông',
+    kind: 'vox-newsprint',
+    frame: 'square',
+    industries: ['education', 'nonprofit', 'general'],
+  },
+  {
+    id: 'fb-vox-punk',
+    loaiId: 'social-vuong',
+    name: 'Zine punk cắt giấy',
+    blurb: 'Đen trắng + hồng điểm · chữ cắt ransom',
+    kind: 'vox-punk-zine',
+    frame: 'square',
+    industries: ['commerce', 'general'],
+  },
+  {
+    id: 'fb-vox-ink',
+    loaiId: 'social-vuong',
+    name: 'Mực tàu / ấn son',
+    blurb: 'Giấy dó · tiêu đề lớn · ấn đỏ',
+    kind: 'vox-ink',
+    frame: 'square',
+    industries: ['education', 'nonprofit'],
+  },
+  {
     id: 'story-white',
     loaiId: 'social-story',
     name: 'Story chữ trắng',
@@ -338,6 +395,24 @@ export const STUDIO_LAYOUTS: StudioLayout[] = [
     industries: ['education', 'hospitality', 'healthcare'],
   },
   {
+    id: 'vid-vox-swiss',
+    loaiId: 'video-ngang',
+    name: 'Cắt giấy Swiss ngang',
+    blurb: 'Lưới 2 màu + đỏ · giấy rách · explainer 16:9',
+    kind: 'vox-swiss-modern',
+    frame: 'landscape',
+    industries: ['tech', 'education', 'general'],
+  },
+  {
+    id: 'vid-vox-news',
+    loaiId: 'video-ngang',
+    name: 'Cắt giấy bìa báo ngang',
+    blurb: 'Masthead · headline · cột — Vox editorial',
+    kind: 'vox-newsprint',
+    frame: 'landscape',
+    industries: ['education', 'nonprofit', 'general'],
+  },
+  {
     id: 'vid-cursor',
     loaiId: 'video-doc',
     name: 'Con trỏ / scramble',
@@ -365,6 +440,24 @@ export const STUDIO_LAYOUTS: StudioLayout[] = [
     industries: ['tech', 'education', 'nonprofit'],
   },
   {
+    id: 'vid-vox-punk',
+    loaiId: 'video-doc',
+    name: 'Zine punk dọc',
+    blurb: '9:16 · photocopy · chữ cắt — Reels / TikTok explainer',
+    kind: 'vox-punk-zine',
+    frame: 'portrait',
+    industries: ['education', 'commerce', 'general'],
+  },
+  {
+    id: 'vid-vox-ink',
+    loaiId: 'video-doc',
+    name: 'Mực tàu dọc',
+    blurb: '9:16 · giấy dó · ấn son — kể chuyện văn hóa',
+    kind: 'vox-ink',
+    frame: 'portrait',
+    industries: ['education', 'nonprofit'],
+  },
+  {
     id: 'poster-sketch',
     loaiId: 'poster-mot-mat',
     name: 'Sketchnote minh họa',
@@ -390,6 +483,15 @@ export const STUDIO_LAYOUTS: StudioLayout[] = [
     kind: 'poster-hero',
     frame: 'portrait',
     industries: ['education', 'nonprofit', 'hospitality'],
+  },
+  {
+    id: 'poster-vox-collage',
+    loaiId: 'poster-mot-mat',
+    name: 'Poster cắt giấy Vox',
+    blurb: 'Giấy rách · băng keo · headline nướng vào poster',
+    kind: 'vox-hook',
+    frame: 'portrait',
+    industries: ['education', 'nonprofit', 'general'],
   },
   {
     id: 'deck-launch',
@@ -516,6 +618,132 @@ export const STUDIO_LAYOUTS: StudioLayout[] = [
     kind: 'quiz',
     frame: 'sheet',
     industries: ['education'],
+  },
+  {
+    id: 'vox-american-retro',
+    loaiId: 'video-vox-collage',
+    name: 'Mỹ retro / pulp',
+    blurb: 'Chữ gỗ · burst · primaries — quảng cáo / thể thao',
+    kind: 'vox-american-retro',
+    frame: 'landscape',
+    industries: ['commerce', 'general'],
+  },
+  {
+    id: 'vox-swiss-modern',
+    loaiId: 'video-vox-collage',
+    name: 'Swiss / lưới sạch',
+    blurb: 'Hai màu + đỏ · Helvetica · explainer kỹ thuật',
+    kind: 'vox-swiss-modern',
+    frame: 'landscape',
+    industries: ['tech', 'education'],
+  },
+  {
+    id: 'vox-punk-zine',
+    loaiId: 'video-vox-collage',
+    name: 'Zine punk photocopy',
+    blurb: 'Đen trắng + một màu điểm · chữ cắt ransom',
+    kind: 'vox-punk-zine',
+    frame: 'landscape',
+    industries: ['commerce', 'general'],
+  },
+  {
+    id: 'vox-soviet',
+    loaiId: 'video-vox-collage',
+    name: 'Kiến tạo Xô viết',
+    blurb: 'Đỏ / đen / kem · thanh chéo · chữ đặc',
+    kind: 'vox-soviet',
+    frame: 'landscape',
+    industries: ['education', 'nonprofit'],
+  },
+  {
+    id: 'vox-wpa',
+    loaiId: 'video-vox-collage',
+    name: 'Áp phích WPA',
+    blurb: 'Ba màu trầm · stencil — lịch sử / y tế công',
+    kind: 'vox-wpa',
+    frame: 'landscape',
+    industries: ['healthcare', 'education', 'nonprofit'],
+  },
+  {
+    id: 'vox-70s',
+    loaiId: 'video-vox-collage',
+    name: '70s groovy',
+    blurb: 'Mù tạt / gỉ / bơ · serif phồng · hạt riso',
+    kind: 'vox-70s',
+    frame: 'landscape',
+    industries: ['hospitality', 'commerce'],
+  },
+  {
+    id: 'vox-ink',
+    loaiId: 'video-vox-collage',
+    name: 'Mực tàu / ấn son',
+    blurb: 'Giấy dó · chữ lớn · ấn đỏ',
+    kind: 'vox-ink',
+    frame: 'landscape',
+    industries: ['education', 'nonprofit'],
+  },
+  {
+    id: 'vox-atomic',
+    loaiId: 'video-vox-collage',
+    name: 'Atomic age',
+    blurb: 'Teal / cam · boomerang — khoa học / tương lai',
+    kind: 'vox-atomic',
+    frame: 'landscape',
+    industries: ['tech', 'education'],
+  },
+  {
+    id: 'vox-newsprint',
+    loaiId: 'video-vox-collage',
+    name: 'Bìa báo editorial',
+    blurb: 'Masthead · cột tin · explainer Vox cổ điển',
+    kind: 'vox-newsprint',
+    frame: 'landscape',
+    industries: ['education', 'nonprofit', 'general'],
+  },
+  {
+    id: 'vox-deco',
+    loaiId: 'video-vox-collage',
+    name: 'Art deco mạ vàng',
+    blurb: 'Kem / vàng champagne · Didone — hàng xa xỉ',
+    kind: 'vox-deco',
+    frame: 'landscape',
+    industries: ['hospitality', 'commerce'],
+  },
+  {
+    id: 'vox-listicle',
+    loaiId: 'video-vox-collage',
+    name: 'Listicle giấy rách',
+    blurb: '01–04 tờ giấy chồng · mẹo / xếp hạng',
+    kind: 'vox-listicle',
+    frame: 'landscape',
+    industries: ['education', 'commerce'],
+  },
+  {
+    id: 'vox-timeline',
+    loaiId: 'video-vox-collage',
+    name: 'Dòng thời gian cắt giấy',
+    blurb: 'Các mốc nối ngang · tiến hóa / lịch sử',
+    kind: 'vox-timeline',
+    frame: 'landscape',
+    industries: ['education', 'nonprofit'],
+  },
+  {
+    id: 'vox-stat',
+    loaiId: 'video-vox-collage',
+    name: 'Số liệu cắt giấy',
+    blurb: 'Một số khổng lồ trên tờ giấy · payoff',
+    kind: 'vox-stat',
+    frame: 'landscape',
+    industries: ['tech', 'education', 'nonprofit'],
+  },
+  {
+    id: 'vox-hook',
+    loaiId: 'video-vox-collage',
+    name: 'Hook banner rách',
+    blurb: 'Headline 2–3 từ chiếm khung · mở ≤3s',
+    kind: 'vox-hook',
+    frame: 'landscape',
+    industries: ['education', 'commerce', 'general'],
   },
 ]
 

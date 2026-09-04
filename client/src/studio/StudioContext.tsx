@@ -42,6 +42,9 @@ export interface StudioSelection {
   contentType: ContentType
   /** Ảnh riêng bài này — nếu trống thì dùng ảnh trên thương hiệu */
   projectPhotos: string[]
+  /** Brief sau vòng deep-research — facts + nguồn */
+  researchReport?: string
+  researchSources?: string[]
 }
 
 /** Form đủ tiêu đề + ít nhất một phần có chữ. */
@@ -86,8 +89,10 @@ export interface StudioContextValue {
   goBack: () => void
   upsertBrand: (brand: StudioBrand) => void
   removeBrand: (id: string) => void
-  runAiAssist: () => Promise<void>
+  runAiAssist: () => Promise<boolean>
+  runDeepResearch: (opts?: { depth?: number; breadth?: number }) => Promise<boolean>
   aiAssistLoading: boolean
+  deepResearchLoading: boolean
   /** Đích xuất bản đang chọn trên bước 4 */
   publishTarget: PublishTarget
   setPublishTarget: (target: PublishTarget) => void

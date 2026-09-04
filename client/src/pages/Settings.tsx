@@ -48,7 +48,7 @@ const TABS: {
   {
     id: 'system',
     label: 'Hệ thống',
-    description: 'Giọng đọc · repo nexu',
+    description: 'Giọng đọc · nghiên cứu · repo',
     icon: Settings2,
   },
 ]
@@ -81,7 +81,8 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
   const [meta, setMeta] = useState<{
     apiKeySet: boolean
     serviceAccountSet: boolean
-  }>({ apiKeySet: false, serviceAccountSet: false })
+    firecrawlKeySet: boolean
+  }>({ apiKeySet: false, serviceAccountSet: false, firecrawlKeySet: false })
   const [nexuRepos, setNexuRepos] = useState<NexuRepoStatus[]>([])
   const [nexuReady, setNexuReady] = useState(false)
   const [ollamaModels, setOllamaModels] = useState<string[]>([])
@@ -105,6 +106,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
       },
       drive: { enabled: false, serviceAccountJson: '', folderId: '' },
       system: { defaultVoice: 'north' },
+      research: { firecrawlKey: '', firecrawlBaseUrl: '' },
     },
   })
 
@@ -129,6 +131,7 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
       setMeta({
         apiKeySet: settings.llm.apiKeySet,
         serviceAccountSet: settings.drive.serviceAccountSet,
+        firecrawlKeySet: settings.research?.firecrawlKeySet ?? false,
       })
       reset({
         llm: {
@@ -155,6 +158,12 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
         },
         system: {
           defaultVoice: settings.system.defaultVoice,
+        },
+        research: {
+          firecrawlKey: settings.research?.firecrawlKeySet
+            ? settings.research.firecrawlKey
+            : '',
+          firecrawlBaseUrl: settings.research?.firecrawlBaseUrl ?? '',
         },
       })
     },
@@ -260,6 +269,13 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
             !values.drive.serviceAccountJson.trim() && meta.serviceAccountSet
               ? '[REDACTED — đã lưu an toàn]'
               : values.drive.serviceAccountJson,
+        },
+        research: {
+          firecrawlKey: looksMasked(values.research?.firecrawlKey ?? '')
+            ? values.research?.firecrawlKey ||
+              (meta.firecrawlKeySet ? '...' : '')
+            : values.research?.firecrawlKey ?? '',
+          firecrawlBaseUrl: values.research?.firecrawlBaseUrl ?? '',
         },
       }
       const saved = await saveSettings(payload)
@@ -723,6 +739,47 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-zinc-200">
+                  Firecrawl (nghiên cứu sâu — tuỳ chọn)
+                </label>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  placeholder={
+                    meta.firecrawlKeySet
+                      ? 'Đã lưu — nhập key mới nếu muốn đổi'
+                      : 'Để trống: tìm Wikipedia / DuckDuckGo'
+                  }
+                  className={fieldClass}
+                  {...register('research.firecrawlKey')}
+                />
+                <p className="text-xs leading-relaxed text-zinc-500">
+                  Key tại{' '}
+                  <a
+                    href="https://www.firecrawl.dev"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    firecrawl.dev
+                  </a>
+                  . Không bắt buộc. Studio vẫn nghiên cứu bằng web mở + LLM
+                  trong Cài đặt.
+                </p>
+                <input
+                  placeholder="Base URL tự host — để trống nếu dùng cloud"
+                  className={fieldClass}
+                  {...register('research.firecrawlBaseUrl')}
+                />
+                {meta.firecrawlKeySet && (
+                  <p className="text-xs text-emerald-400/90">
+                    Firecrawl đã lưu. Để trống hoặc giữ dạng đã che nếu không
+                    đổi.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-zinc-200">
                   Vùng giọng mặc định
                 </label>
                 <select
@@ -740,11 +797,12 @@ export function SettingsPage({ onNotify }: SettingsPageProps) {
               <div className="space-y-3 border-t border-zinc-800 pt-5">
                 <header>
                   <h3 className="text-sm font-semibold text-zinc-100">
-                    Repo nexu-io {nexuReady ? '· sẵn sàng' : '· thiếu thư mục'}
+                    Repo thiết kế {nexuReady ? '· sẵn sàng' : '· thiếu thư mục'}
                   </h3>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                    Studio đọc skill / template / DESIGN.md trên máy. nexu
-                    (OpenClaw) là app IM — không render PNG/MP4.
+                    Studio đọc skill / template / DESIGN.md / vox-director trên
+                    máy. nexu (OpenClaw) là app IM — không render PNG/MP4.
+                    vox-director là ngôn ngữ cắt giấy, không gọi Atlas.
                   </p>
                 </header>
                 <ul className="space-y-2">

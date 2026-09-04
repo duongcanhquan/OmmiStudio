@@ -9,7 +9,7 @@ import { probeNexuStack } from '../services/NexuStackService';
 
 /**
  * Dynamic asset discovery for the Visual Creation Studio.
- * Scans local nexu-io tool directories (html-anything, open-design, motion-anything).
+ * Scans local vendor directories (nexu-io + vox-director).
  */
 
 /** GET /api/v1/assets/templates */
@@ -51,7 +51,7 @@ export async function listMotions(_req: Request, res: Response): Promise<void> {
   }
 }
 
-/** GET /api/v1/assets/tools — 5 repo nexu-io + template html-video */
+/** GET /api/v1/assets/tools — nexu-io + vox-director + template html-video */
 export async function listNexuTools(
   _req: Request,
   res: Response

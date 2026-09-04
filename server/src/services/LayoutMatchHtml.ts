@@ -1,5 +1,6 @@
 import type { BrandLook } from './brandLook';
 import type { ScriptPart } from './scriptForm';
+import { renderVoxCollageHtml } from './VoxCollageHtml';
 
 /** Khớp `kind` trên client `layoutCatalog.ts` — xuất đúng khung đã chọn. */
 export const LAYOUT_KIND_BY_ID: Record<string, string> = {
@@ -45,6 +46,28 @@ export const LAYOUT_KIND_BY_ID: Record<string, string> = {
   'cv-modern': 'resume-col',
   'sheet-notes': 'worksheet',
   'quiz-module': 'quiz',
+  'fb-vox-newsprint': 'vox-newsprint',
+  'fb-vox-punk': 'vox-punk-zine',
+  'fb-vox-ink': 'vox-ink',
+  'vid-vox-swiss': 'vox-swiss-modern',
+  'vid-vox-news': 'vox-newsprint',
+  'vid-vox-punk': 'vox-punk-zine',
+  'vid-vox-ink': 'vox-ink',
+  'poster-vox-collage': 'vox-hook',
+  'vox-american-retro': 'vox-american-retro',
+  'vox-swiss-modern': 'vox-swiss-modern',
+  'vox-punk-zine': 'vox-punk-zine',
+  'vox-soviet': 'vox-soviet',
+  'vox-wpa': 'vox-wpa',
+  'vox-70s': 'vox-70s',
+  'vox-ink': 'vox-ink',
+  'vox-atomic': 'vox-atomic',
+  'vox-newsprint': 'vox-newsprint',
+  'vox-deco': 'vox-deco',
+  'vox-listicle': 'vox-listicle',
+  'vox-timeline': 'vox-timeline',
+  'vox-stat': 'vox-stat',
+  'vox-hook': 'vox-hook',
 };
 
 function esc(value: string): string {
@@ -108,6 +131,15 @@ export function renderLayoutMatchHtml(input: {
 }): string | null {
   const kind = resolveLayoutKind(input.layoutId, input.layoutKind);
   if (!kind) return null;
+
+  const vox = renderVoxCollageHtml({
+    kind,
+    title: input.title,
+    parts: input.parts,
+    look: input.look,
+    fieldValues: input.fieldValues,
+  });
+  if (vox) return vox;
 
   const look = input.look;
   const fv = input.fieldValues ?? {};

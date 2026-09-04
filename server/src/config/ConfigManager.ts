@@ -33,6 +33,10 @@ export interface AppSettings {
   system: {
     defaultVoice: VoiceRegionSetting;
   };
+  research: {
+    firecrawlKey: string;
+    firecrawlBaseUrl: string;
+  };
 }
 
 /** Public shape returned by GET /settings (secrets masked). */
@@ -58,6 +62,11 @@ export interface PublicAppSettings {
   system: {
     defaultVoice: VoiceRegionSetting;
   };
+  research: {
+    firecrawlKey: string;
+    firecrawlKeySet: boolean;
+    firecrawlBaseUrl: string;
+  };
 }
 
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -80,6 +89,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   system: {
     defaultVoice: 'north',
   },
+  research: {
+    firecrawlKey: '',
+    firecrawlBaseUrl: '',
+  },
 };
 
 function deepMergeSettings(
@@ -90,6 +103,7 @@ function deepMergeSettings(
     llm: { ...base.llm, ...(patch.llm ?? {}) },
     drive: { ...base.drive, ...(patch.drive ?? {}) },
     system: { ...base.system, ...(patch.system ?? {}) },
+    research: { ...base.research, ...(patch.research ?? {}) },
   };
 }
 
@@ -109,6 +123,13 @@ function seedFromEnv(defaults: AppSettings): AppSettings {
   }
   if (process.env.LLM_BASE_URL?.trim()) {
     seeded.llm.baseUrl = process.env.LLM_BASE_URL.trim();
+  }
+
+  if (process.env.FIRECRAWL_KEY?.trim()) {
+    seeded.research.firecrawlKey = process.env.FIRECRAWL_KEY.trim();
+  }
+  if (process.env.FIRECRAWL_BASE_URL?.trim()) {
+    seeded.research.firecrawlBaseUrl = process.env.FIRECRAWL_BASE_URL.trim();
   }
 
   if (process.env.GDRIVE_FOLDER_ID?.trim()) {
@@ -285,6 +306,16 @@ export class ConfigManager {
       merged.drive.serviceAccountJson = current.drive.serviceAccountJson;
     }
 
+    if (!merged.research) {
+      merged.research = { ...DEFAULT_SETTINGS.research };
+    }
+    if (
+      patch.research?.firecrawlKey !== undefined &&
+      isMaskedSecret(patch.research.firecrawlKey)
+    ) {
+      merged.research.firecrawlKey = current.research?.firecrawlKey ?? '';
+    }
+
     return this.save(merged);
   }
 
@@ -294,6 +325,8 @@ export class ConfigManager {
     const saSet = Boolean(s.drive.serviceAccountJson.trim());
     const provider = normalizeProvider(s.llm.provider);
     const fbKeySet = Boolean(s.llm.fallbackApiKey?.trim());
+    const research = s.research ?? DEFAULT_SETTINGS.research;
+    const fcSet = Boolean(research.firecrawlKey.trim());
     return {
       llm: {
         provider,
@@ -315,6 +348,11 @@ export class ConfigManager {
       },
       system: {
         defaultVoice: s.system.defaultVoice,
+      },
+      research: {
+        firecrawlKey: fcSet ? maskSecret(research.firecrawlKey) : '',
+        firecrawlKeySet: fcSet,
+        firecrawlBaseUrl: research.firecrawlBaseUrl,
       },
     };
   }

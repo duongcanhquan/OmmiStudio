@@ -1,8 +1,10 @@
 import type { StudioBrand } from '../lib/brands'
 import type { LayoutKind, StudioLayout } from '../lib/layoutCatalog'
 import type { PreviewFrame } from '../lib/templateCatalog'
+import { isVoxLayoutKind } from '../lib/voxThemes'
 import { cn } from '../lib/utils'
 import { PREVIEW_SAMPLE } from './LookPreview'
+import { VoxCollagePreview } from './VoxCollagePreview'
 
 const FRAME_CLASS: Record<PreviewFrame, string> = {
   square: 'aspect-square',
@@ -116,6 +118,10 @@ function KindArt({
   const pad = large ? 'p-5' : 'p-3'
   const h1 = large ? 'text-3xl' : 'text-[17px]'
   const tiny = large ? 'text-[11px]' : 'text-[8px]'
+
+  if (isVoxLayoutKind(kind)) {
+    return <VoxCollagePreview kind={kind} brand={brand} large={large} />
+  }
 
   switch (kind) {
     case 'pastel-hero':
@@ -729,6 +735,14 @@ function KindArt({
             <li>— Ý 2</li>
             <li>— Ý 3</li>
           </ul>
+        </div>
+      )
+
+    default:
+      return (
+        <div className={cn('flex h-full flex-col justify-center', pad)} style={{ background: paper, color: ink }}>
+          <p className={cn('font-black leading-tight', h1)}>{sample.headline}</p>
+          <p className={cn('mt-2 opacity-70', tiny)}>{sample.line}</p>
         </div>
       )
   }

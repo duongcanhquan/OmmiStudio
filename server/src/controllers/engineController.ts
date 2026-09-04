@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import { normalizeStudioForm, type ContentType } from '../services/LLMService';
 import {
+  formatResearchBrief,
+  runDeepResearch,
+} from '../services/DeepResearchService';
+import {
   runGeneratePipeline,
   runPreviewPipeline,
 } from '../services/PipelineService';
@@ -367,6 +371,98 @@ export async function normalizeScript(
       error:
         `AI không điền form được. Giữ dữ liệu hiện tại và điền tay nếu cần. ` +
         `Chi tiết: ${message}`,
+    });
+  }
+}
+
+/**
+ * POST /api/v1/script/research — deep-research rồi AI điền form kịch bản.
+ */
+export async function researchAndWrite(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const {
+    templateType,
+    templateId,
+    layoutId,
+    brief,
+    fieldValues,
+    parts,
+    brandName,
+    breadth,
+    depth,
+  } = req.body as {
+    templateType?: StudioTemplateType;
+    templateId?: string;
+    layoutId?: string;
+    brief?: string;
+    fieldValues?: Record<string, string>;
+    parts?: unknown;
+    brandName?: string;
+    breadth?: number;
+    depth?: number;
+  };
+
+  const idea = typeof brief === 'string' ? brief.trim() : '';
+  if (!idea) {
+    res.status(400).json({
+      success: false,
+      error: 'Viết ý tưởng rồi bấm nghiên cứu sâu.',
+    });
+    return;
+  }
+  if (!templateType) {
+    res.status(400).json({
+      success: false,
+      error: 'Thiếu loại mẫu để viết kịch bản sau nghiên cứu.',
+    });
+    return;
+  }
+
+  try {
+    const research = await runDeepResearch({
+      idea,
+      breadth: typeof breadth === 'number' ? breadth : undefined,
+      depth: typeof depth === 'number' ? depth : undefined,
+    });
+    const researchBrief = formatResearchBrief(research, idea);
+    const bind = resolveSkillBind(
+      typeof templateId === 'string' ? templateId : undefined,
+      typeof layoutId === 'string' ? layoutId : undefined
+    );
+    const skillBrief = await skillBriefForTemplate(
+      typeof templateId === 'string' ? templateId : undefined,
+      typeof layoutId === 'string' ? layoutId : undefined
+    );
+    const form = await normalizeStudioForm({
+      templateType,
+      brief: `${idea}\n\n${researchBrief}`,
+      fieldValues:
+        fieldValues && typeof fieldValues === 'object' ? fieldValues : {},
+      parts: parseParts(parts),
+      skillBrief,
+      fileLabel: bind?.fileLabel,
+      purpose: bind?.purpose,
+      brandName: typeof brandName === 'string' ? brandName : undefined,
+    });
+    res.status(200).json({
+      success: true,
+      title: form.title,
+      fieldValues: form.fieldValues,
+      parts: form.parts,
+      researchReport: research.report,
+      researchLearnings: research.learnings,
+      researchSources: research.visitedUrls,
+      searchBackend: research.searchBackend,
+      message: `Đã nghiên cứu ${research.visitedUrls.length} nguồn rồi viết kịch bản.`,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Lỗi không xác định';
+    console.error('[script/research]', message);
+    res.status(422).json({
+      success: false,
+      error: `Nghiên cứu / viết kịch bản chưa xong. ${message}`,
     });
   }
 }

@@ -459,6 +459,19 @@ export const REQUIRED_FIELDS_BY_TYPE: Record<TemplateType, RequiredContentField[
         { value: 'timeline', label: 'Dòng thời gian / ngày trong đời' },
         { value: 'interview', label: 'Phỏng vấn / hỏi đáp' },
         { value: 'tutorial', label: 'Hướng dẫn từng bước' },
+        { value: 'hook_payoff', label: 'Vox: Hook → dựng → payoff' },
+        { value: 'pas', label: 'Vox: PAS — vấn đề → khuấy → giải' },
+        { value: 'bab', label: 'Vox: BAB — trước → sau → cầu nối' },
+        { value: 'aida', label: 'Vox: AIDA — chú ý → muốn → hành động' },
+        { value: 'storybrand', label: 'Vox: StoryBrand — khách là hero' },
+        { value: 'how_it_works', label: 'Vox: Cách hoạt động / từng bước' },
+        { value: 'man_in_hole', label: 'Vox: Rơi xuống rồi trèo lên' },
+        { value: 'story_spine', label: 'Vox: Story spine — ngày xưa…' },
+        { value: 'origin', label: 'Vox: Nguồn gốc / vì sao tồn tại' },
+        { value: 'myth_buster', label: 'Vox: Phá tin đồn — FACT trước' },
+        { value: 'listicle', label: 'Vox: Listicle — N cách / mẹo' },
+        { value: 'three_act', label: 'Vox: Ba hồi' },
+        { value: 'story_circle', label: 'Vox: Vòng kể — đi tìm rồi đổi' },
       ],
     },
     { key: 'hook', label: 'Câu mở đầu', placeholder: 'VD: Chọn trường cho con không chỉ là chọn điểm.', required: false, hint: 'Không bắt buộc — có thể viết luôn trong khung kịch bản.' },
@@ -1038,7 +1051,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
   },
   video: {
     intro:
-      'Đây là video HTML có motion: mỗi cảnh một câu ngắn trên trang thiết kế (màu, chữ chạy). Xem trước để thấy chuyển động; xuất MP4 sẽ quay trang đó. Không quay camera, không tạo hình AI.',
+      'Video HTML có motion. Chữ động: mỗi cảnh một câu trên trang (blob / scramble). Cắt giấy Vox: mỗi cảnh một poster giấy rách, headline 2–3 từ, hook ≤3s. Xuất MP4 quay trang đó — không quay camera, không cần Atlas.',
     placeholder:
       'VD:\nCảnh 1 (0–5s): Chữ «Chọn trường cho con không chỉ là chọn điểm.» Lời đọc cùng câu đó.\nCảnh 2: Ba lợi ích — ngắn, một ý một dòng.\nCảnh cuối: «Đăng ký ngày hội mở cửa.»',
   },
@@ -1092,7 +1105,7 @@ export const TEMPLATE_SCRIPT_HELP: Record<
 /** Giải thích format thật — tránh hiểu nhầm video = phim quay / clip AI */
 export const TEMPLATE_FORMAT_NOTE: Partial<Record<TemplateType, string>> = {
   video:
-    'Sản phẩm: MP4 quay từ trang html-video đang chạy (màu, blob, chữ chạy, recipe motion). Xem trước iframe là bản sống; file PNG của mẫu ảnh vẫn là một khung đứng.',
+    'Sản phẩm: MP4 quay từ trang HTML đang chạy. Video chữ động = blob / scramble; Video cắt giấy Vox = poster giấy rách + băng keo + headline, giấy lớp chuyển động. Xem trước iframe là bản sống.',
   social:
     'Mặc định xuất ẢNH PNG (đăng Facebook / Instagram / Zalo). Trong form có ô «File xuất» nếu bạn muốn đổi sang video chữ động MP4.',
 }
@@ -1102,7 +1115,7 @@ export const TEMPLATE_AI_GUIDANCE: Record<TemplateType, string> = {
   deck: 'Viết đúng số slide + tỷ lệ + mật độ đã chọn. Mỗi cảnh = 1 slide (tiêu đề + gạch đầu dòng ngắn). Chỉ tiếng Việt.',
   poster: 'Chữ poster đúng khổ/hướng: tiêu đề mạnh, nút kêu gọi rõ, ít chữ. Chỉ tiếng Việt.',
   video:
-    'Chỉ viết kịch bản chữ động tiếng Việt: visualText tối đa một câu ngắn (lên hình), voiceoverText là lời đọc, kèm số giây và kiểu chuyển động. Không mô tả cảnh quay, không sinh hình.',
+    'Chỉ viết kịch bản tiếng Việt: visualText tối đa một câu ngắn (lên hình / headline poster), voiceoverText là lời đọc, kèm số giây. Video cắt giấy: headline 2–3 từ, mỗi cảnh một poster, hook ≤3s. Không mô tả cảnh quay người, không sinh hình.',
   social:
     'Viết chữ ngắn cho ẢNH bài đăng: tiêu đề lớn, 1–2 câu phụ, CTA. Đúng tỷ lệ (vuông / Story). Chỉ tiếng Việt. Không viết kịch bản video trừ khi người dùng chọn file MP4.',
   document: 'Cấu trúc tài liệu đúng loại + khổ + độ dài: tóm tắt rồi các mục. Chỉ tiếng Việt.',
@@ -1196,8 +1209,17 @@ export function buildStudioPrompt(input: {
       `Tên: ${layoutName}`,
       layoutHint ? `Cách xếp: ${layoutHint}` : '',
       'Viết chữ khớp chỗ đặt (tiêu đề, từ nhấn, số, CTA) — không đổi layout.',
-      ''
     )
+    if (
+      /cắt giấy|vox|zine|mực tàu|art deco|atomic|wpa|listicle giấy/i.test(
+        `${layoutName} ${layoutHint ?? ''}`
+      )
+    ) {
+      lines.push(
+        'Ngôn ngữ Vox collage: headline 2–3 từ in HOA, một câu phụ, giấy rách / băng keo / chấm halftone. Không CGI, không ảnh người thật.',
+      )
+    }
+    lines.push('')
   }
 
   if (brand?.name) {

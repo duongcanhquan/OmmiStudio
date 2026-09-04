@@ -108,13 +108,42 @@ export function probeNexuStack(): {
         'WeChat / Feishu / Slack / Discord — không phải máy render file. Studio chỉ đọc skill catalog.',
       counts: { skills: nexuSkills },
     },
+    {
+      id: 'vox-director',
+      name: 'vox-director',
+      url: 'https://github.com/Alisa0808/vox-director',
+      present:
+        present('vox-director/SKILL.md') ||
+        present('vox-director/references/prompt-guide.md'),
+      role: 'Ngôn ngữ cắt giấy Vox',
+      usedFor:
+        '10 theme poster + 14 cung kể chuyện. Studio vẽ collage HTML local — không gọi Atlas.',
+      counts: { themes: 10, arcs: 14 },
+    },
+    {
+      id: 'deep-research',
+      name: 'deep-research',
+      url: 'https://github.com/dzhng/deep-research',
+      present:
+        present('deep-research/README.md') ||
+        present('deep-research/src/deep-research.ts'),
+      role: 'Nghiên cứu lặp (SERP → học → đào sâu)',
+      usedFor:
+        'Engine Studio chạy vòng nghiên cứu rồi đưa facts vào AI viết kịch bản. Firecrawl tuỳ chọn.',
+      counts: { algorithm: 1 },
+    },
   ];
 
   return {
     toolsRoot: TOOLS,
     repos,
     ready: repos
-      .filter((repo) => repo.id !== 'nexu')
+      .filter(
+        (repo) =>
+          repo.id !== 'nexu' &&
+          repo.id !== 'vox-director' &&
+          repo.id !== 'deep-research'
+      )
       .every((repo) => repo.present),
   };
 }

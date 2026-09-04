@@ -56,6 +56,16 @@ const REPOS = [
     install: false,
     sparse: ['nexu-skills', 'skills'],
   },
+  {
+    name: 'vox-director',
+    repo: 'https://github.com/Alisa0808/vox-director.git',
+    install: false,
+  },
+  {
+    name: 'deep-research',
+    repo: 'https://github.com/dzhng/deep-research.git',
+    install: false,
+  },
 ];
 
 function log(msg) {

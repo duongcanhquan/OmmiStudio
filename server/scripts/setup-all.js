@@ -3,7 +3,7 @@
  * LYON Studio — master setup script
  *
  * 1. Checks system deps (ffmpeg, python/pip)
- * 2. Clones the 5 nexu-io repos under /server/tools (assets, không build Electron)
+ * 2. Clones nexu-io + vox-director under /server/tools (assets, không build Electron)
  * 3. Installs edge-tts into a local Python venv for Vietnamese voiceovers
  *
  * Usage:
@@ -50,6 +50,16 @@ const REPOS = [
     name: 'nexu',
     url: 'https://github.com/nexu-io/nexu.git',
     sparse: ['nexu-skills', 'skills'],
+    postInstall: [],
+  },
+  {
+    name: 'vox-director',
+    url: 'https://github.com/Alisa0808/vox-director.git',
+    postInstall: [],
+  },
+  {
+    name: 'deep-research',
+    url: 'https://github.com/dzhng/deep-research.git',
     postInstall: [],
   },
 ];

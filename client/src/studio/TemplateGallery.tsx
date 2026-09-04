@@ -342,6 +342,17 @@ function ThumbArt({
       </svg>
     )
   }
+  if (id === 'video-vox-collage') {
+    return (
+      <svg {...common}>
+        <rect x="6" y="16" width="50" height="30" rx="2" fill={ink} />
+        <polygon points="10,20 28,18 30,34 8,36" fill={accent} />
+        <rect x="34" y="20" width="16" height="10" fill="#f8fafc" opacity=".85" transform="rotate(-8 42 25)" />
+        <rect x="22" y="12" width="18" height="5" fill="#e8d9a8" transform="rotate(12 31 14)" />
+        <circle cx="48" cy="38" r="5" fill={accent} opacity=".9" />
+      </svg>
+    )
+  }
   if (id === 'poster-mot-mat') {
     return (
       <svg {...common}>

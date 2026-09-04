@@ -104,6 +104,21 @@ export const CURATED_STUDIO_TEMPLATES: StudioCatalogItem[] = [
     accent2: '#fbbf24',
   },
   {
+    id: 'video-vox-collage',
+    name: 'Video cắt giấy Vox',
+    type: 'video',
+    description:
+      'Explainer / quảng cáo giấy cắt: tờ rách, băng keo, chấm halftone, headline nướng vào poster. 10 theme từ vox-director + 4 bố cục kể chuyện. Xuất MP4 quay trang collage (không cần Atlas).',
+    path: '(curated)',
+    output: 'video',
+    outputLabel: 'VIDEO MP4',
+    purpose: 'Video explainer cắt giấy 16:9',
+    skillId: 'video-hyperframes',
+    frame: 'landscape',
+    accent: '#9b1d20',
+    accent2: '#c9a227',
+  },
+  {
     id: 'poster-mot-mat',
     name: 'Poster một mặt',
     type: 'poster',
@@ -299,8 +314,19 @@ export function defaultsForCatalog(template: TemplateMeta): {
   } else if (template.id === 'social-carousel') {
     fieldValues.aspect = '1:1'
     fieldValues.size = '1080x1080'
-  } else if (template.id === 'video-ngang' || template.id === 'deck-chuan') {
+  } else if (
+    template.id === 'video-ngang' ||
+    template.id === 'deck-chuan' ||
+    template.id === 'video-vox-collage'
+  ) {
     fieldValues.aspect = '16:9'
+  }
+
+  if (template.id === 'video-vox-collage') {
+    fieldValues.durationSec = fieldValues.durationSec || '30'
+    fieldValues.sceneCount = fieldValues.sceneCount || '6'
+    fieldValues.structure = fieldValues.structure || 'hook_payoff'
+    fieldValues.pacing = fieldValues.pacing || 'medium'
   }
 
   if (template.type === 'social') {

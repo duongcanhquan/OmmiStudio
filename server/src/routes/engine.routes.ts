@@ -3,6 +3,7 @@ import {
   generate,
   generatePreview,
   normalizeScript,
+  researchAndWrite,
   renderHtml,
 } from '../controllers/engineController';
 import assetsRouter from './assets.routes';
@@ -16,6 +17,7 @@ const v1Router: ExpressRouter = Router();
 v1Router.post('/generate', generate);
 v1Router.post('/generate/preview', generatePreview);
 v1Router.post('/script/normalize', normalizeScript);
+v1Router.post('/script/research', researchAndWrite);
 v1Router.use('/assets', assetsRouter);
 v1Router.use('/projects', projectsRouter);
 v1Router.use('/settings', settingsRouter);

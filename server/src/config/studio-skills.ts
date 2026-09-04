@@ -68,6 +68,14 @@ export const STUDIO_SKILL_MAP: Record<string, StudioSkillBind> = {
     videoTemplateId: 'vfx-text-cursor',
     motionRecipeId: 'text-scramble',
   },
+  'video-vox-collage': {
+    skillId: 'video-hyperframes',
+    purpose: 'Video explainer cắt giấy Vox — 16:9',
+    fileLabel: 'VIDEO MP4',
+    copyHint:
+      'Mỗi cảnh = một poster cắt giấy (tiêu đề 2–3 từ, 1 câu phụ). Giấy rách, băng keo, chấm halftone, headline nướng vào ảnh. Hook ≤3s. Không quay người, không CGI.',
+    capture: 'page',
+  },
   'poster-mot-mat': {
     skillId: 'article-sketchnote-editorial',
     purpose: 'Poster / trang minh họa một mặt',

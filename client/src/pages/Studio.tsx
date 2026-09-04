@@ -7,6 +7,7 @@ import {
   generateContent,
   generatePreview as apiGeneratePreview,
   normalizeScriptForm,
+  researchAndWriteScript,
   templateTypeToContentType,
   type MotionRecipe,
   type PublishTarget,
@@ -65,6 +66,8 @@ const INITIAL_SELECTION: StudioSelection = {
   voiceRegion: 'south',
   contentType: 'slide',
   projectPhotos: [],
+  researchReport: '',
+  researchSources: [],
 }
 
 const INITIAL_RESULT: StudioResult = {
@@ -196,6 +199,7 @@ export function StudioPage({
   const [templateFilter, setTemplateFilter] = useState<TemplateFilter>('all')
   const [previewLoading, setPreviewLoading] = useState(false)
   const [aiAssistLoading, setAiAssistLoading] = useState(false)
+  const [deepResearchLoading, setDeepResearchLoading] = useState(false)
   const [renderLoading, setRenderLoading] = useState(false)
   const [renderPhase, setRenderPhase] = useState<RenderPhase>('idle')
   const [result, setResult] = useState<StudioResult>(INITIAL_RESULT)
@@ -423,11 +427,11 @@ export function StudioPage({
   const runAiAssist = useCallback(async () => {
     if (!selection.aiBrief.trim() && !selection.scriptNotes.trim()) {
       onNotify?.('Viết brief ngắn (bạn muốn làm gì) rồi bấm AI điền form.', true)
-      return
+      return false
     }
     if (!selection.selectedTemplate) {
       onNotify?.('Chọn mẫu trước.', true)
-      return
+      return false
     }
     setAiAssistLoading(true)
     setError(null)
@@ -477,14 +481,110 @@ export function StudioPage({
       setSelection(nextSelection)
       onNotify?.('AI đã điền form — đang mở bản xem trước sống.')
       void requestPreview(nextSelection, false)
+      return true
     } catch (err) {
       const message = extractErrorMessage(err)
       setError(message)
       onNotify?.(message, true)
+      return false
     } finally {
       setAiAssistLoading(false)
     }
   }, [selection, onNotify, requestPreview])
+
+  const applyFilledForm = useCallback(
+    (
+      response: {
+        title?: string
+        fieldValues?: Record<string, string>
+        parts?: StudioSelection['parts']
+      },
+      extra?: Partial<StudioSelection>
+    ) => {
+      const incoming: Record<string, string> = {
+        ...(response.fieldValues ?? {}),
+      }
+      const keep = [
+        'outputFormat',
+        'size',
+        'aspect',
+        'postType',
+        'platform',
+        'paper',
+      ]
+      const fieldValues: Record<string, string> = {
+        ...selection.fieldValues,
+        ...incoming,
+        title: incoming.title || response.title || selection.fieldValues.title,
+      }
+      for (const key of keep) {
+        if (!incoming[key]?.trim() && selection.fieldValues[key]) {
+          fieldValues[key] = selection.fieldValues[key]
+        }
+      }
+      return {
+        ...selection,
+        fieldValues,
+        parts: response.parts ?? selection.parts,
+        ...extra,
+      } satisfies StudioSelection
+    },
+    [selection]
+  )
+
+  const runDeepResearch = useCallback(
+    async (opts?: { depth?: number; breadth?: number }) => {
+      if (!selection.aiBrief.trim() && !selection.scriptNotes.trim()) {
+        onNotify?.('Viết ý tưởng rồi bấm nghiên cứu sâu.', true)
+        return false
+      }
+      if (!selection.selectedTemplate) {
+        onNotify?.('Chọn mẫu trước.', true)
+        return false
+      }
+      setDeepResearchLoading(true)
+      setError(null)
+      try {
+        const response = await researchAndWriteScript({
+          templateType: selection.selectedTemplate.type,
+          templateId: selection.selectedTemplate.id,
+          layoutId:
+            selection.layoutId ??
+            defaultLayoutId(selection.selectedTemplate.id),
+          brief: [selection.aiBrief, selection.scriptNotes]
+            .filter(Boolean)
+            .join('\n'),
+          fieldValues: selection.fieldValues,
+          parts: selection.parts,
+          brandName: selection.selectedBrand?.name,
+          breadth: opts?.breadth ?? 2,
+          depth: opts?.depth ?? 1,
+        })
+        if (!response.success || !response.parts) {
+          throw new Error(response.error || 'Nghiên cứu chưa viết được kịch bản.')
+        }
+        const nextSelection = applyFilledForm(response, {
+          researchReport: response.researchReport || '',
+          researchSources: response.researchSources ?? [],
+        })
+        setSelection(nextSelection)
+        onNotify?.(
+          response.message ||
+            'Đã nghiên cứu nguồn rồi viết kịch bản — kiểm tra rồi xem trước.'
+        )
+        void requestPreview(nextSelection, false)
+        return true
+      } catch (err) {
+        const message = extractErrorMessage(err)
+        setError(message)
+        onNotify?.(message, true)
+        return false
+      } finally {
+        setDeepResearchLoading(false)
+      }
+    },
+    [selection, onNotify, requestPreview, applyFilledForm]
+  )
 
   const handleGeneratePreview = useCallback(async () => {
     await requestPreview(selection)
@@ -611,7 +711,9 @@ export function StudioPage({
       upsertBrand,
       removeBrand,
       runAiAssist,
+      runDeepResearch,
       aiAssistLoading,
+      deepResearchLoading,
       publishTarget,
       setPublishTarget,
       driveReady,
@@ -639,7 +741,9 @@ export function StudioPage({
       upsertBrand,
       removeBrand,
       runAiAssist,
+      runDeepResearch,
       aiAssistLoading,
+      deepResearchLoading,
       publishTarget,
       driveReady,
     ]

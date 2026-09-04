@@ -681,7 +681,7 @@ export function buildLocalVideoScript(
   return assertVideoScript({ title, language: 'vi', scenes });
 }
 
-function canCallConfiguredLlm(): boolean {
+export function canCallConfiguredLlm(): boolean {
   const def = getProviderDef(getProvider());
   if (def.keyOptional) return true;
   const key = getApiKeySafe();
@@ -812,6 +812,7 @@ export async function normalizeStudioForm(input: {
     'part.title: một ý, tối đa 8 từ. part.body: 1–2 câu, cụ thể, không sáo rỗng.',
     'CTA (role cta): động từ + hành động (Đăng ký ngày hội / Giữ chỗ ngay).',
     'Không bịa số liệu, tên người, ngày. Giữ ô user đã viết nếu hợp lý.',
+    'Nếu có khối NGHIÊN CỨU SÂU: chỉ dùng facts/số/ngày có trong đó. Thiếu thì viết chung, đừng bịa.',
     'Điền thêm fieldValues có sẵn từ form (recipient, fullName, stats…) nếu brief có.',
     input.fileLabel
       ? `File xuất của mẫu này là ${input.fileLabel} — mật độ chữ vừa khít file đó.`
@@ -842,12 +843,28 @@ export async function normalizeStudioForm(input: {
   return assertNormalizedForm(parsed);
 }
 
+export async function completeJsonObject<T>(
+  system: string,
+  user: string
+): Promise<T> {
+  const result = await completeChatWithFallback({
+    system,
+    user,
+    preferJson: true,
+  });
+  if (!result.text?.trim()) {
+    throw new Error(`${result.providerLabel} không trả về JSON.`);
+  }
+  return JSON.parse(extractJsonPayload(result.text)) as T;
+}
+
 export const llmService = {
   generateVideoScript,
   resolveVideoScript,
   buildLocalVideoScript,
   normalizeStudioForm,
   extractJsonPayload,
+  completeJsonObject,
   testLlmConnection,
 };
 

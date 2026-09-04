@@ -34,11 +34,46 @@ export async function readSkillBrief(skillId: string): Promise<string> {
   }
 }
 
+const VOX_GUIDE = path.resolve(
+  __dirname,
+  '../../tools/vox-director/references/prompt-guide.md'
+);
+
+async function readVoxLookBrief(): Promise<string> {
+  try {
+    const raw = await fs.readFile(VOX_GUIDE, 'utf-8');
+    return raw.slice(0, 1400);
+  } catch {
+    return [
+      'Mixed-media hand-cut PAPER COLLAGE, editorial zine style.',
+      'Torn/scissor-cut paper edges, tape, halftone dots, newspaper clippings, paper drop-shadows.',
+      'Headline baked in, 2–3 words. Bold flat color per beat. NOT 3D, NOT CGI.',
+    ].join(' ');
+  }
+}
+
+function isVoxBind(templateId?: string, layoutId?: string): boolean {
+  return (
+    templateId === 'video-vox-collage' || Boolean(layoutId?.includes('vox'))
+  );
+}
+
 export async function skillBriefForTemplate(
   templateId?: string,
   layoutId?: string
 ): Promise<string> {
   const bind = resolveSkillBind(templateId, layoutId);
+  if (isVoxBind(templateId, layoutId)) {
+    const look = await readVoxLookBrief();
+    return [
+      '=== NGÔN NGỮ CẮT GIẤY (vox-director) ===',
+      bind ? `Bố cục: ${bind.purpose}. ${bind.copyHint}` : '',
+      'Mỗi cảnh = một poster giấy. Headline 2–3 từ. Hook ≤3 giây. Không CGI, không quay người.',
+      look,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
   if (!bind) return '';
   const brief = await readSkillBrief(bind.skillId);
   if (!brief) return '';

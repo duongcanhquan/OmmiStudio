@@ -29,6 +29,11 @@ export interface PublicAppSettings {
   system: {
     defaultVoice: VoiceRegionSetting
   }
+  research?: {
+    firecrawlKey: string
+    firecrawlKeySet: boolean
+    firecrawlBaseUrl: string
+  }
 }
 
 export interface SettingsFormValues {
@@ -49,6 +54,10 @@ export interface SettingsFormValues {
   }
   system: {
     defaultVoice: VoiceRegionSetting
+  }
+  research?: {
+    firecrawlKey: string
+    firecrawlBaseUrl?: string
   }
 }
 

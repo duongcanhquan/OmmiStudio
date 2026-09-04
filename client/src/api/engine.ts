@@ -194,6 +194,42 @@ export async function normalizeScriptForm(payload: {
   return data
 }
 
+export async function researchAndWriteScript(payload: {
+  templateType: TemplateType
+  templateId?: string
+  layoutId?: string
+  brief: string
+  fieldValues?: Record<string, string>
+  parts?: ScriptPart[]
+  brandName?: string
+  breadth?: number
+  depth?: number
+}): Promise<{
+  success: boolean
+  title?: string
+  fieldValues?: Record<string, string>
+  parts?: ScriptPart[]
+  researchReport?: string
+  researchLearnings?: string[]
+  researchSources?: string[]
+  searchBackend?: 'firecrawl' | 'open-web'
+  message?: string
+  error?: string
+}> {
+  const { data } = await engineApi.post('/script/research', {
+    templateType: payload.templateType,
+    templateId: payload.templateId,
+    layoutId: payload.layoutId,
+    brief: payload.brief,
+    fieldValues: payload.fieldValues,
+    parts: payload.parts,
+    brandName: payload.brandName,
+    breadth: payload.breadth,
+    depth: payload.depth,
+  })
+  return data
+}
+
 export async function fetchTemplates(): Promise<TemplateMeta[]> {
   const { data } = await engineApi.get<{
     success: boolean
